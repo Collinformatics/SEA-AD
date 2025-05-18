@@ -11,10 +11,9 @@ import sys
 
 # ===================================== User Inputs ======================================
 # Input 1: Select Dataset
-inPathFolder = '/Users/ca34522/Documents/Bioinformatics/SEA-AD/'
-inFiles = ['sea-ad_all_mtg_quant_neuropath_bydonorid_081122.csv',
-           'sea-ad_cohort_donor_metadata_072524.xlsx']
-inLoadFile = inFiles[0]
+inPathFolder = '/path/SEA-AD/'
+inLoadFiles = ['sea-ad_all_mtg_quant_neuropath_bydonorid_081122.csv',
+               'sea-ad_cohort_donor_metadata_072524.xlsx']
 
 # Input 2: Data Inspection
 inPrintLoadedData = False
@@ -48,22 +47,16 @@ resetColor = '\033[0m'
 brains = BrainData(pathFolder=inPathFolder, printData=inPrintLoadedData)
 
 # Load Data
-quantNeuropathy = brains.loadData(fileName=inFiles[0])
-metaData = brains.loadData(fileName=inFiles[1])
+quantNeuropathy = brains.loadData(fileName=inLoadFiles[0])
+metaData = brains.loadData(fileName=inLoadFiles[1])
 
 
 
 # ==================================== Evaluate Data =====================================
-print('=============================== Compare Datasets ================================')
-matchID = list(metaData.loc[:, 'Donor ID'])
-missingID, missingIDCount  = [], 0
-for index, donorID in enumerate(quantNeuropathy.loc[:, 'Donor ID']):
-    if donorID not in matchID:
-        missingIDCount += 1
-if missingIDCount == 0:
-    print(f'All Donor IDs match\n')
-else:
-    print(f'Missing Donor IDs: {missingIDCount}\n{missingID}\n')
+# Compair Datasets
+brains.compairDF(data1=quantNeuropathy, name1=inLoadFiles[0],
+                 data2=metaData, name2=inLoadFiles[1])
 
-
+brains.processAT8(data=quantNeuropathy, name=inLoadFiles[0],
+                  header='total AT8 positive', divisorHeader='Grey matter')
 

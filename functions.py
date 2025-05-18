@@ -3,12 +3,14 @@ from Bio.Seq import Seq
 from Bio import BiopythonWarning
 import math
 import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
+import numpy as np
 import os
 import pandas as pd
 import seaborn as sns
 import sys
 
-
+from matplotlib.pyplot import xlabel
 
 # ===================================== Set Options ======================================
 pd.set_option('display.max_columns', None)
@@ -49,6 +51,7 @@ class BrainData:
 
         # Parameters: Figures
         self.figSize = (9.5, 8)
+        self.figSizeW = (16, 8)
         self.labelSizeTitle = 18
         self.labelSizeAxis = 16
         self.labelSizeTicks = 13
@@ -58,6 +61,61 @@ class BrainData:
 
         # Parameters: Variables
         self.printData = printData
+
+
+
+    @staticmethod
+    def createCustomColorMap(colorType):
+        colorType = colorType.lower()
+        if colorType == 'bars':
+            useGreen = True
+            if useGreen:
+                # Green
+                colors = ['#FFFFFF','#ABFF9B','#39FF14','#2E9418','#2E9418',
+                          '#005000']
+            else:
+                # Orange
+                colors = ['white','white','#FF76FA','#FF50F9','#FF00F2',
+                          '#CA00DF','#BD16FF']
+        elif colorType == 'stdev':
+            colors = ['white','white','#FF76FA','#FF50F9','#FF00F2','#CA00DF','#BD16FF']
+        elif colorType == 'word cloud':
+            # ,'#F2A900','#2E8B57','black'
+            colors = ['#CC5500','#F79620','#FAA338','#00C01E','#003000','black']
+            # colors = ['#008631','#39E75F','#CC5500','#F79620','black']
+        elif colorType == 'em':
+            colors = ['navy','royalblue','dodgerblue','lightskyblue','white','white',
+                      'lightcoral','red','firebrick','darkred']
+        else:
+            print(f'{orange}ERROR: Cannot create colormap. '
+                  f'Unrecognized colorType parameter: {colorType}{resetColor}\n')
+            sys.exit(1)
+
+        # Create colormap
+        if len(colors) == 1:
+            colorList = [(0, colors[0]), (1, colors[0])]
+        else:
+            colorList = [(i / (len(colors) - 1), color) for i, color in enumerate(colors)]
+        return LinearSegmentedColormap.from_list('custom_colormap', colorList)
+
+
+
+    @staticmethod
+    def compairDF(data1, name1, data2, name2):
+        print('=============================== Compare Datasets '
+              '================================')
+        print(f'Datasets:\n'
+              f'     {greenLight}{name1}\n'
+              f'     {name2}{resetColor}\n')
+        matchID = list(data2.loc[:, 'Donor ID'])
+        missingID, missingIDCount = [], 0
+        for index, donorID in enumerate(data1.loc[:, 'Donor ID']):
+            if donorID not in matchID:
+                missingIDCount += 1
+        if missingIDCount == 0:
+            print(f'All Donor IDs match\n\n')
+        else:
+            print(f'Missing Donor IDs: {missingIDCount}\n{missingID}\n\n')
 
 
 
@@ -95,7 +153,7 @@ class BrainData:
             print(f'\n{orange}ERROR: Unknown File Extension: {cyan}{fileName}\n')
             sys.exit(1)
 
-        print(f'\nDatapoints: {red}{len(data.iloc[:, 0])}{resetColor}\n')
+        print(f'\nTotal Patients: {red}{len(data.iloc[:, 0])}{resetColor}\n')
         if self.printData:
             print(f'Loaded Data: {greenLight}{fileName}{resetColor}\n'
                   f'{data}\n\n')
@@ -106,92 +164,117 @@ class BrainData:
 
 
 
-    def plotBarGraph(self, data, dataType, barColor='#CC5500', barWidth=0.75):
+    def processAT8(self, data, name, header, divisorHeader):
+        print('============================== Evaluating Datasets '
+              '==============================')
+        print(f'Datasets:\n'
+              f'     {greenLight}{name}{resetColor}\n\n'
+              f'Evaluating Headers: {purple}{header}{resetColor}')
+
+        # Determent Relevant Columns
+        columns = []
+        columnsNew = []
+        for column in data.columns:
+            if header in column:
+                if divisorHeader in column:
+                    divisorHeader = column
+                    print(f'Divisor: {pink}{divisorHeader}{resetColor}')
+                else:
+                    columns.append(column)
+                    columnsNew.append(f'% AT8 positive {column.split("_")[1]}')
+                    print(f'     Column: {pink}{column}{resetColor}')
+        print('\n')
+
+        # Initialize DF
+        df = pd.DataFrame(0.0, columns=columnsNew,
+                          index=list(data.loc[:, 'Donor ID']))
+
+
+
+        # Evaluate Data
+        sumAT8 = 0
+        lowDiv = False
+        for index, donorID in enumerate(data.loc[:, 'Donor ID']):
+            div = data.loc[index, divisorHeader]
+            sumAT8 += div
+            for indexCol, column in enumerate(df.columns):
+                sumAT8 += data.loc[index, columns[indexCol]]
+                df.loc[donorID, column] = (data.loc[index, columns[indexCol]] / div) * 100
+            if not lowDiv and sumAT8 > div:
+                lowDiv = True
+                print(f'{yellow}Warning: In at least 1 sample the {cyan}{header}{yellow} '
+                      f'total signal from the layers is > the total signal used for '
+                      f'the {cyan}Divisor{yellow}\n'
+                      f'Sample: {pink}{donorID}\n'
+                      f'     {cyan}{header}: {red}{sumAT8:,}\n'
+                      f'     {cyan}Divisor: {red}{div:,}{resetColor}\n')
+        print(f'Percent AT8 positive in each layer:\n{df}\n\n')
+
+        barColors = ['#A800FF', '#FA8128', '#56F1FF', '#2E9418', '#FF0080']
+        self.plotBarGraph(data=df, dataType='% AT8', barColors=barColors, barWidth=0.2)
+
+
+
+    def plotBarGraph(self, data, dataType, barColors='#CC5500', barWidth=0.75):
         print('================================ Plot: Bar Graph '
               '================================')
         if self.NBars is None:
             self.NBars = len(data.iloc[:, 0])
-        xValues = []
+        else:
+            data = len(data.iloc[:, 0:self.NBars])
+        title = ''
+        figSize = self.figSize
         yValues = []
+        xLabels = data.index
+        print(f'{xLabels}\n\n{len((xLabels))}')
+        xTicks = np.arange(len(xLabels))
+        print()
 
-        # Collect substrates
-        iteration = 0
-        countsTotal = 0
-        for count in substrates.values():
-            countsTotal += count
-        print(f'Total Substrates: {red}{countsTotal:,}{resetColor}')
-
-        if 'counts' in dataType.lower():
-            # Evaluate: Substrates
-            for substrate, count in substrates.items():
-                xValues.append(str(substrate))
-                yValues.append(count)
-                iteration += 1
-                if iteration == self.NSubBars:
-                    break
+        if '% at8' in dataType.lower():
+            title = 'AT8 Distribution'
+            figSize = self.figSizeW
 
             # Evaluate: Y axis
-            maxValue = math.ceil(max(yValues))
+            maxVal = data.max().max()
+            print(f'Max: {maxVal}')
+            maxValue = math.ceil(maxVal)
             magnitude = math.floor(math.log10(maxValue))
             unit = 10**(magnitude-1)
             yMax = math.ceil(maxValue / unit) * unit
-            if yMax < max(yValues):
+            if yMax < maxVal:
                 increaseValue = unit / 2
                 while yMax < max(yValues):
                     print(f'Increase yMax by:{yellow} {increaseValue}{resetColor}')
                     yMax += increaseValue
                 print('\n')
             yMin = 0 # math.floor(min(yValues) / unit) * unit - spacer
-        elif 'probability' in dataType.lower():
-            # Evaluate: Substrates
-            for substrate, count in substrates.items():
-                xValues.append(str(substrate))
-                yValues.append(count / countsTotal)
-                iteration += 1
-                if iteration == self.NSubBars:
-                    break
-
-            # Evaluate: Y axis
-            maxValue = max(yValues)
-            magnitude = math.floor(math.log10(maxValue))
-            adjustedMax = maxValue * 10**abs(magnitude)
-            yMax = math.ceil(adjustedMax) * 10**magnitude
-            adjVal = 5 * 10**(magnitude-1)
-            yMaxAdjusted = yMax - adjVal
-            if yMaxAdjusted > maxValue:
-                yMax = yMaxAdjusted
-            yMin = 0
         else:
-            # Evaluate: Substrates
-            for substrate, count in substrates.items():
-                xValues.append(str(substrate))
-                yValues.append(count)
-                iteration += 1
-                if iteration == self.NSubBars:
-                    break
-
-            # Evaluate: Y axis
-            spacer = 0.2
-            yMax = math.ceil(max(yValues)) + spacer
-            yMin = math.floor(min(yValues))
-        NSubs = len(xValues)
-        print(f'Number of plotted sequences: {red}{NSubs}{resetColor}\n\n')
-
-        # Plot the data
-        fig, ax = plt.subplots(figsize=self.figSize)
-        bars = plt.bar(xValues, yValues, color=barColor, width=barWidth)
-        plt.ylabel(dataType, fontsize=self.labelSizeAxis)
-        plt.title(f'\n{self.enzymeName}\n{self.datasetTag}\n'
-                 f'Top {NSubs} Substrates',
-                  fontsize=self.labelSizeTitle, fontweight='bold')
-        plt.axhline(y=0, color='black', linewidth=self.lineThickness)
-        plt.ylim(yMin, yMax)
-        # plt.subplots_adjust(top=0.873, bottom=0.12, left=0.101, right=0.979)
+            print(f'Unknown Data Type: {dataType}')
+            sys.exit(1)
 
 
-        # Set the edge color
-        for bar in bars:
-            bar.set_edgecolor('black')
+        # Plot the figure
+        columns = data.columns.tolist()
+        nColumns = len(columns)  # Number of layers = 5
+        fig, ax = plt.subplots(figsize=figSize)
+        for index, column in enumerate(columns):
+            print(index, column)
+            # Plot each layer with an offset
+            offsets = xTicks + (index - nColumns / 2) * barWidth + barWidth / 2
+            ax.bar(offsets, data[column], width=barWidth,
+                   label=column.replace('% AT8 positive ', ''),
+                   color=barColors[index % len(barColors)],
+                   edgecolor='black', linewidth=1)
+        ax.set_title(title, fontsize=self.labelSizeTitle, fontweight='bold')
+        ax.set_ylabel(dataType, fontsize=self.labelSizeAxis)
+        ax.axhline(y=0, color='black', linewidth=self.lineThickness)
+        ax.legend(title='Layer', fontsize=8, title_fontsize=9)
+        ax.set_ylim(yMin, yMax)
+
+        # Set: xticks
+        ax.set_xticks(xTicks)
+        print(len(xTicks))
+        ax.set_xticklabels([str(label) for label in xLabels], rotation=90, fontsize=8)
 
         # Set tick parameters
         ax.tick_params(axis='both', which='major', length=self.tickLength,
