@@ -2,6 +2,8 @@
     # Higher level cognitive function: Memory, verbal memory, visual processing
     # Buildup of Tau in preclinical AD, increases as the disease progresses
 
+# AT8: Anti-Phospho-Tau (Ser202, Thr205) Monoclonal Antibody
+
 
 from functions import BrainData
 import pandas as pd
@@ -17,6 +19,7 @@ inLoadFiles = ['sea-ad_all_mtg_quant_neuropath_bydonorid_081122.csv',
 
 # Input 2: Data Inspection
 inPrintLoadedData = False
+
 
 
 # ===================================== Set Options ======================================
@@ -57,6 +60,8 @@ metaData = brains.loadData(fileName=inLoadFiles[1])
 brains.compairDF(data1=quantNeuropathy, name1=inLoadFiles[0],
                  data2=metaData, name2=inLoadFiles[1])
 
-brains.processAT8(data=quantNeuropathy, name=inLoadFiles[0],
-                  header='total AT8 positive', divisorHeader='Grey matter')
+# Tau distributions
+perAT8 = brains.processAT8(data=quantNeuropathy, name=inLoadFiles[0],
+                           header='total AT8 positive', divisorHeader='Grey matter')
+
 

@@ -212,6 +212,8 @@ class BrainData:
         barColors = ['#2E9418', '#A800FF', '#909090', '#56F1FF', '#FF0080']
         self.plotBarGraph(data=df, dataType='% AT8', barColors=barColors, barWidth=0.2)
 
+        return df
+
 
 
     def plotBarGraph(self, data, dataType, barColors='#CC5500', barWidth=0.75):
