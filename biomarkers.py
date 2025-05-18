@@ -1,3 +1,8 @@
+# MTG: Middle temporal gyrus
+    # Higher level cognitive function: Memory, verbal memory, visual processing
+    # Buildup of Tau in preclinical AD, increases as the disease progresses
+
+
 from functions import BrainData
 
 
@@ -8,4 +13,8 @@ inFiles = ['sea-ad_all_mtg_quant_neuropath_bydonorid_081122.csv',
 inLoadFile = inFiles[0]
 
 # Initialize class
-brains = BrainData(pathFolder=inPathFolder, fileName=inLoadFile)
+brains = BrainData(pathFolder=inPathFolder)
+
+# Load Data
+data = brains.loadData(fileName=inFiles[0])
+print(type(data))
