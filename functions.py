@@ -41,6 +41,14 @@ resetColor = '\033[0m'
 
 
 # =================================== Define Functions ===================================
+def pressKey(event):
+    if event.key == 'escape':
+        plt.close()
+    elif event.key == 'backspace':
+        sys.exit()
+
+
+
 class BrainData:
     def __init__(self, pathFolder, fileName):
         # Define: Variables
