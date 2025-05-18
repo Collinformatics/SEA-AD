@@ -1,25 +1,17 @@
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio import BiopythonWarning
-import gzip
-import math
-from itertools import combinations, product
 import matplotlib.pyplot as plt
-from matplotlib.colors import LinearSegmentedColormap, Normalize
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-import numpy as np
 import os
 import pandas as pd
-import pickle as pk
 import seaborn as sns
 import sys
-import threading
 
 
 
 # ===================================== Set Options ======================================
 pd.set_option('display.max_columns', None)
-pd.set_option('display.width', 1000)
+pd.set_option('display.width', 300)
 pd.set_option('display.float_format', '{:,.5f}'.format)
 
 # Colors: Console
@@ -57,16 +49,18 @@ class BrainData:
         # Define: Files
         self.pathFolder = pathFolder
         self.fileName = fileName
-        self.filePath = []
-        self.filePath.append(os.path.join(self.pathFolder, self.fileName))
+        self.filePath = os.path.join(self.pathFolder, self.fileName)
+        self.loadData()
 
-        # Load Data
+
+
+    def loadData(self):
+        # Evaluate: File extension
         fileExt = self.fileName[-5:]
         if '.csv' in fileExt:
             self.loadCSV()
         elif '.xlsx' in fileExt:
             self.loadExcel()
-
 
 
 
@@ -77,13 +71,13 @@ class BrainData:
         print(f'Loading File:\n'
               f'    {greenDark}{self.filePath}{resetColor}\n\n')
         if os.path.exists(self.filePath):
-            print('')
-            # data = pd.read_csv(filePath, index_col=0)
+            data = pd.read_csv(self.filePath, index_col=0)
         else:
             print(f'\n{orange}ERROR: File not found\n'
                   f'     {cyan}{self.filePath}\n')
             sys.exit(1)
-        print(f'{resetColor}')
+        print(f'Loaded Data: {greenLight}{self.fileName}{resetColor}\n'
+              f'{data}\n\n')
 
 
     def loadExcel(self):
@@ -93,11 +87,11 @@ class BrainData:
         print(f'Loading File:\n'
               f'    {greenDark}{self.filePath}{resetColor}\n\n')
         if os.path.exists(self.filePath):
-            print('')
-            # data = pd.read_csv(filePath, index_col=0)
+            data = pd.read_excel(self.filePath)
         else:
             print(f'\n{orange}ERROR: File not found\n'
                   f'     {cyan}{self.filePath}\n')
             sys.exit(1)
-        print(f'{resetColor}')
+        print(f'Loaded Data: {greenLight}{self.fileName}{resetColor}\n'
+              f'{data}\n\n')
 
