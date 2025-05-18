@@ -190,7 +190,6 @@ class BrainData:
                           index=list(data.loc[:, 'Donor ID']))
 
 
-
         # Evaluate Data
         sumAT8 = 0
         lowDiv = False
@@ -210,7 +209,7 @@ class BrainData:
                       f'     {cyan}Divisor: {red}{div:,}{resetColor}\n')
         print(f'Percent AT8 positive in each layer:\n{df}\n\n')
 
-        barColors = ['#A800FF', '#FA8128', '#56F1FF', '#2E9418', '#FF0080']
+        barColors = ['#2E9418', '#A800FF', '#909090', '#56F1FF', '#FF0080']
         self.plotBarGraph(data=df, dataType='% AT8', barColors=barColors, barWidth=0.2)
 
 
@@ -225,18 +224,16 @@ class BrainData:
         title = ''
         figSize = self.figSize
         yValues = []
-        xLabels = data.index
-        print(f'{xLabels}\n\n{len((xLabels))}')
-        xTicks = np.arange(len(xLabels))
-        print()
-
         if '% at8' in dataType.lower():
+
             title = 'AT8 Distribution'
             figSize = self.figSizeW
+            edgeWidth = 0
+            print(f'Plotting: {purple}{title}{resetColor}\n'
+                  f'{data}\n\n')
 
             # Evaluate: Y axis
             maxVal = data.max().max()
-            print(f'Max: {maxVal}')
             maxValue = math.ceil(maxVal)
             magnitude = math.floor(math.log10(maxValue))
             unit = 10**(magnitude-1)
@@ -244,36 +241,43 @@ class BrainData:
             if yMax < maxVal:
                 increaseValue = unit / 2
                 while yMax < max(yValues):
-                    print(f'Increase yMax by:{yellow} {increaseValue}{resetColor}')
                     yMax += increaseValue
-                print('\n')
-            yMin = 0 # math.floor(min(yValues) / unit) * unit - spacer
+            yMin = 0
         else:
             print(f'Unknown Data Type: {dataType}')
             sys.exit(1)
 
+
+        # Params: xticks
+        xLabels = data.index
+        spacingFactor = 1.5  # or try 2.0, 2.5, etc.
+        xTicks = np.arange(len(xLabels)) * spacingFactor
+        totalGroupWidth = (len(data.columns.tolist()) - 1) * barWidth
+        xMin = xTicks[0] - totalGroupWidth / 2
+        xMax = xTicks[-1] + totalGroupWidth / 2
 
         # Plot the figure
         columns = data.columns.tolist()
         nColumns = len(columns)  # Number of layers = 5
         fig, ax = plt.subplots(figsize=figSize)
         for index, column in enumerate(columns):
-            print(index, column)
             # Plot each layer with an offset
             offsets = xTicks + (index - nColumns / 2) * barWidth + barWidth / 2
             ax.bar(offsets, data[column], width=barWidth,
                    label=column.replace('% AT8 positive ', ''),
                    color=barColors[index % len(barColors)],
-                   edgecolor='black', linewidth=1)
+                   edgecolor='black', linewidth=edgeWidth)
         ax.set_title(title, fontsize=self.labelSizeTitle, fontweight='bold')
         ax.set_ylabel(dataType, fontsize=self.labelSizeAxis)
         ax.axhline(y=0, color='black', linewidth=self.lineThickness)
         ax.legend(title='Layer', fontsize=8, title_fontsize=9)
+        ax.set_xlim(xMin, xMax)
         ax.set_ylim(yMin, yMax)
 
         # Set: xticks
+        padding = barWidth * 2
+        ax.set_xlim(xMin - padding, xMax + padding)
         ax.set_xticks(xTicks)
-        print(len(xTicks))
         ax.set_xticklabels([str(label) for label in xLabels], rotation=90, fontsize=8)
 
         # Set tick parameters
