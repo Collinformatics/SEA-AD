@@ -6,7 +6,7 @@
     pip install seaborn
 
 
-#Keyboard Shortcuts
+# Keyboard Shortcuts
 
 Esc: Close the current figure
 
