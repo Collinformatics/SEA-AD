@@ -174,42 +174,48 @@ class BrainData:
         # Determent Relevant Columns
         columns = []
         columnsNew = []
-        for column in data.columns:
+        indexColumns = []
+        for index, column in enumerate(data.columns):
             if header in column:
+                print(index, column)
                 if divisorHeader in column:
                     divisorHeader = column
                     print(f'Divisor: {pink}{divisorHeader}{resetColor}')
                 else:
                     columns.append(column)
                     columnsNew.append(f'% AT8 positive {column.split("_")[1]}')
+                    indexColumns.append(index)
                     print(f'     Column: {pink}{column}{resetColor}')
         print('\n')
 
         # Initialize DF
-        df = pd.DataFrame(0.0, columns=columnsNew,
-                          index=list(data.loc[:, 'Donor ID']))
-
+        colStart, colEnd = indexColumns[0], indexColumns[-1] + 1
+        df = pd.DataFrame(data.loc[:, data.columns[colStart]:data.columns[colEnd]],
+                          columns=columnsNew, index=list(data.loc[:, 'Donor ID']))
 
         # Evaluate Data
         sumAT8 = 0
         lowDiv = False
         for index, donorID in enumerate(data.loc[:, 'Donor ID']):
-            div = data.loc[index, divisorHeader]
-            sumAT8 += div
+            totalSignal = data.iloc[index, colStart:colEnd]
+            totalSignal.astype(float) # Convert to floats
+            totalSignal = totalSignal.sum()
             for indexCol, column in enumerate(df.columns):
                 sumAT8 += data.loc[index, columns[indexCol]]
-                df.loc[donorID, column] = (data.loc[index, columns[indexCol]] / div) * 100
-            if not lowDiv and sumAT8 > div:
+                df.loc[donorID, column] = (data.loc[index, columns[indexCol]] /
+                                           totalSignal) * 100
+            if not lowDiv and sumAT8 > totalSignal:
                 lowDiv = True
                 print(f'{yellow}Warning: In at least 1 sample the {cyan}{header}{yellow} '
                       f'total signal from the layers is > the total signal used for '
                       f'the {cyan}Divisor{yellow}\n'
                       f'Sample: {pink}{donorID}\n'
                       f'     {cyan}{header}: {red}{sumAT8:,}\n'
-                      f'     {cyan}Divisor: {red}{div:,}{resetColor}\n')
+                      f'     {cyan}Divisor: {red}{totalSignal:,}{resetColor}\n')
+            sumAT8 = 0
         print(f'Percent AT8 positive in each layer:\n{df}\n\n')
 
-        barColors = ['#2E9418', '#A800FF', '#909090', '#56F1FF', '#FF0080']
+        barColors = ['#FF8800', '#2E9418', '#56F1FF', '#FF0080', '#A800FF']
         self.plotBarGraph(data=df, dataType='% AT8', barColors=barColors, barWidth=0.2)
 
         return df
