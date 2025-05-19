@@ -10,7 +10,7 @@ import pandas as pd
 import seaborn as sns
 import sys
 
-from matplotlib.pyplot import xlabel
+
 
 # ===================================== Set Options ======================================
 pd.set_option('display.max_columns', None)
@@ -45,9 +45,14 @@ def pressKey(event):
 
 
 class BrainData:
-    def __init__(self, pathFolder, printData, NBars=None):
+    def __init__(self, pathFolder, perAT8Cutoff, printData=False, NBars=None):
         # Parameters: Files
         self.pathFolder = pathFolder
+
+        # Parameters: Data
+        self.patientsOfInterest = [] # Selected donors with localized AT8
+        self.perAT8 = None
+        self.perAT8High = None
 
         # Parameters: Figures
         self.figSize = (9.5, 8)
@@ -60,8 +65,9 @@ class BrainData:
         self.NBars = NBars
 
         # Parameters: Variables
+        self.perAT8Cutoff = perAT8Cutoff
         self.printData = printData
-
+        
 
 
     @staticmethod
@@ -188,57 +194,62 @@ class BrainData:
                     print(f'     Column: {pink}{column}{resetColor}')
         print('\n')
 
-        # Initialize DF
+        # Initialize DFs
         colStart, colEnd = indexColumns[0], indexColumns[-1] + 1
-        df = pd.DataFrame(data.loc[:, data.columns[colStart]:data.columns[colEnd]],
-                          columns=columnsNew, index=list(data.loc[:, 'Donor ID']))
+        self.perAT8 = pd.DataFrame(data.loc[:, data.columns[colStart]:
+                                               data.columns[colEnd]],
+                                   columns=columnsNew,
+                                   index=list(data.loc[:, 'Donor ID']))
+        self.perAT8High = pd.DataFrame(data.loc[:, data.columns[colStart]:
+                                                   data.columns[colEnd]],
+                                       columns=columnsNew, index=[])
 
         # Evaluate Data
-        sumAT8 = 0
-        lowDiv = False
         for index, donorID in enumerate(data.loc[:, 'Donor ID']):
             totalSignal = data.iloc[index, colStart:colEnd]
             totalSignal.astype(float) # Convert to floats
             totalSignal = totalSignal.sum()
-            for indexCol, column in enumerate(df.columns):
-                sumAT8 += data.loc[index, columns[indexCol]]
-                df.loc[donorID, column] = (data.loc[index, columns[indexCol]] /
+            for indexCol, column in enumerate(self.perAT8.columns):
+                self.perAT8.loc[donorID, column] = (data.loc[index, columns[indexCol]] /
                                            totalSignal) * 100
-            if not lowDiv and sumAT8 > totalSignal:
-                lowDiv = True
-                print(f'{yellow}Warning: In at least 1 sample the {cyan}{header}{yellow} '
-                      f'total signal from the layers is > the total signal used for '
-                      f'the {cyan}Divisor{yellow}\n'
-                      f'Sample: {pink}{donorID}\n'
-                      f'     {cyan}{header}: {red}{sumAT8:,}\n'
-                      f'     {cyan}Divisor: {red}{totalSignal:,}{resetColor}\n')
-            sumAT8 = 0
-        print(f'Percent AT8 positive in each layer:\n{df}\n\n')
+            
+            # Collect samples with localized AT8 distributions
+            maxVal = self.perAT8.iloc[index, :].max()
+            if maxVal > self.perAT8Cutoff:
+                self.patientsOfInterest.append(donorID)
+                self.perAT8High.loc[donorID] = self.perAT8.iloc[index, :]
+        print(f'Percent AT8 positive in each layer:\n{self.perAT8}\n\n')
+        if self.patientsOfInterest:
+            print('Donors localized AT8:')
+            for donorID in self.patientsOfInterest:
+                print(f'{purple}{donorID}{resetColor}:\n'
+                      f'{self.perAT8High.loc[donorID, :]}\n')
+        print(f'{resetColor}')
 
+        # Plot the data
         barColors = ['#FF8800', '#2E9418', '#56F1FF', '#FF0080', '#A800FF']
-        self.plotBarGraph(data=df, dataType='% AT8', barColors=barColors, barWidth=0.2)
+        self.plotBarGraph(data=self.perAT8, dataType='% AT8',
+                          barColors=barColors, barWidth=0.2)
+        self.plotBarGraph(data=self.perAT8High, dataType='% AT8',
+                          barColors=barColors, barWidth=0.2, cutoff=True)
 
-        return df
 
 
 
-    def plotBarGraph(self, data, dataType, barColors='#CC5500', barWidth=0.75):
-        print('================================ Plot: Bar Graph '
-              '================================')
-        if self.NBars is None:
-            self.NBars = len(data.iloc[:, 0])
-        else:
+    def plotBarGraph(self, data, dataType, barColors='#CC5500', barWidth=0.75,
+                     cutoff=False):
+        if self.NBars is not None:
             data = len(data.iloc[:, 0:self.NBars])
         title = ''
         figSize = self.figSize
         yValues = []
         if '% at8' in dataType.lower():
-
-            title = 'AT8 Distribution'
+            if cutoff:
+                title = f'Localized AT8 Distribution'
+            else:
+                title = 'AT8 Distribution'
             figSize = self.figSizeW
             edgeWidth = 0
-            print(f'Plotting: {purple}{title}{resetColor}\n'
-                  f'{data}\n\n')
 
             # Evaluate: Y axis
             maxVal = data.max().max()
@@ -252,7 +263,7 @@ class BrainData:
                     yMax += increaseValue
             yMin = 0
         else:
-            print(f'Unknown Data Type: {dataType}')
+            print(f'Unknown data type for bar graph: {dataType}')
             sys.exit(1)
 
 

@@ -18,7 +18,7 @@ inLoadFiles = ['sea-ad_all_mtg_quant_neuropath_bydonorid_081122.csv',
                'sea-ad_cohort_donor_metadata_072524.xlsx']
 
 # Input 2: Data Inspection
-inPrintLoadedData = False
+inAT8Cutoff = 45
 
 
 
@@ -47,7 +47,7 @@ resetColor = '\033[0m'
 
 # ===================================== Import Data ======================================
 # Initialize class
-brains = BrainData(pathFolder=inPathFolder, printData=inPrintLoadedData)
+brains = BrainData(pathFolder=inPathFolder, perAT8Cutoff=inAT8Cutoff)
 
 # Load Data
 quantNeuropathy = brains.loadData(fileName=inLoadFiles[0])
