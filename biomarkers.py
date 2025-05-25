@@ -18,7 +18,7 @@ inLoadFiles = ['sea-ad_all_mtg_quant_neuropath_bydonorid_081122.csv',
                'sea-ad_cohort_donor_metadata_072524.xlsx']
 
 # Input 2: Data Inspection
-inAT8Cutoff = 45
+inAT8Cutoff = 40
 
 # Input 3: Plotting Data
 inPlotAT8 = False
@@ -55,18 +55,18 @@ brains = BrainData(pathFolder=inPathFolder, perAT8Cutoff=inAT8Cutoff, plotAT8=in
 
 # Load Data
 quantNeuropathy = brains.loadData(fileName=inLoadFiles[0])
-metaData = brains.loadData(fileName=inLoadFiles[1])
+metadata = brains.loadData(fileName=inLoadFiles[1])
 
 
 
 # ==================================== Evaluate Data =====================================
 # Compair Datasets
 brains.compairDF(data1=quantNeuropathy, name1=inLoadFiles[0],
-                 data2=metaData, name2=inLoadFiles[1])
+                 data2=metadata, name2=inLoadFiles[1])
 
 # Tau distributions
 brains.processAT8(data=quantNeuropathy, name=inLoadFiles[0],
                   header='total AT8 positive', divisorHeader='Grey matter')
 
 # Scan Donors Of Interest
-brains.DOI(data=metaData)
+brains.DOI(data=metadata)

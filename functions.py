@@ -73,7 +73,10 @@ class BrainData:
         # Parameters: Variables
         self.perAT8Cutoff = perAT8Cutoff
         self.printData = printData
-        
+
+        # Parameters: Miscellaneous
+        self.roundDeci = 3
+
 
 
     @staticmethod
@@ -375,9 +378,13 @@ class BrainData:
         dataTag = f'Localized AT8 > {self.perAT8Cutoff} %'
         self.getMetadata(data, dataTag=dataTag)
 
+
+
     def getMetadata(self, data, dataTag):
         print('=================================== Metadata '
               '====================================')
+        numPatients = len(self.dataPOI.index)
+
         # Select data for POI
         dataFields = ['Highest level of education', 'APOE Genotype', 'Cognitive Status',
                       'Age of onset cognitive symptoms', 'Age of Dementia diagnosis',
@@ -394,10 +401,10 @@ class BrainData:
 
 
         # Evaluate metadata
-        metaData = {}
+        metadata = {}
         for field in self.dataPOI.columns:
             datapoints = {}
-            metaData[field] = {}
+            metadata[field] = {}
             for donorID in self.dataPOI.index:
                 datapoint = self.dataPOI.loc[donorID, field]
                 if isinstance(datapoint, (int, float)) and np.isnan(datapoint):
@@ -415,26 +422,40 @@ class BrainData:
             except:
                 # Alphabetical sort
                 datapoints = dict(sorted(datapoints.items(), key=lambda x: str(x)))
-            metaData[field] = datapoints
+            metadata[field] = datapoints
 
 
         # Print data
-        for field in list(metaData.keys()):
+        for field in list(metadata.keys()):
             print(f'Category: {greenLight}{field}{resetColor}')
-            values = metaData[field]
+            values = metadata[field]
             for key, value in values.items():
                 print(f'     {pink}{key}{resetColor}, Count: {red}{value}{resetColor}')
             print()
         print()
 
+        # Evaluate: Dementia stats
+        dementiaCounts = 0
+        for key, count in metadata['Cognitive Status'].items():
+            if 'dementia' in key.lower():
+                dementiaCounts += count
+                break
+        dementiaPercent = (dementiaCounts / numPatients) * 100
+        print(f'Dementia cases in subset: {purple}{dataTag}{resetColor}\n'
+              f'     Dementia Cases: {red}{dementiaCounts}{resetColor}\n'
+              f'     Total Patients: {red}{numPatients}{resetColor}\n'
+              f'     Prevalence: {red}{round(dementiaPercent, self.roundDeci)} %'
+              f'{resetColor}\n')
+
+
         # Plot the data
-        self.plotMetadata(data=metaData, dataTag=dataTag)
+        self.plotMetadata(data=metadata, dataTag=dataTag, N=numPatients)
 
 
 
-    def plotMetadata(self, data, dataTag):
+    def plotMetadata(self, data, dataTag, N):
         barColors = plt.cm.Accent.colors
-        title = dataTag
+        title = f'{dataTag}\nN = {N} Patients'
 
         # Get: Dataset fields
         fields = list(data.keys())
@@ -480,6 +501,7 @@ class BrainData:
         ax.set_ylim(-1, len(yTicks))
         ax.set_yticks(yTicks)
         ax.set_yticklabels([str(label) for label in yLabels])
+        ax.invert_yaxis()
 
         # Set tick parameters
         ax.tick_params(axis='both', which='major', length=self.tickLength,
