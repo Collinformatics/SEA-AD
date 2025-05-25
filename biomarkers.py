@@ -20,6 +20,9 @@ inLoadFiles = ['sea-ad_all_mtg_quant_neuropath_bydonorid_081122.csv',
 # Input 2: Data Inspection
 inAT8Cutoff = 45
 
+# Input 3: Plotting Data
+inPlotAT8 = False
+inPlotAT8Cutoff = False
 
 
 # ===================================== Set Options ======================================
@@ -47,7 +50,8 @@ resetColor = '\033[0m'
 
 # ===================================== Import Data ======================================
 # Initialize class
-brains = BrainData(pathFolder=inPathFolder, perAT8Cutoff=inAT8Cutoff)
+brains = BrainData(pathFolder=inPathFolder, perAT8Cutoff=inAT8Cutoff, plotAT8=inPlotAT8,
+                   plotAT8Cutoff=inPlotAT8Cutoff)
 
 # Load Data
 quantNeuropathy = brains.loadData(fileName=inLoadFiles[0])
@@ -61,7 +65,8 @@ brains.compairDF(data1=quantNeuropathy, name1=inLoadFiles[0],
                  data2=metaData, name2=inLoadFiles[1])
 
 # Tau distributions
-perAT8 = brains.processAT8(data=quantNeuropathy, name=inLoadFiles[0],
-                           header='total AT8 positive', divisorHeader='Grey matter')
+brains.processAT8(data=quantNeuropathy, name=inLoadFiles[0],
+                  header='total AT8 positive', divisorHeader='Grey matter')
 
-
+# Scan Donors Of Interest
+brains.DOI(data=metaData)

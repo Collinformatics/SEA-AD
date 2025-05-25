@@ -9,8 +9,9 @@ import os
 import pandas as pd
 import seaborn as sns
 import sys
+import time
 
-
+from setuptools.command.rotate import rotate
 
 # ===================================== Set Options ======================================
 pd.set_option('display.max_columns', None)
@@ -45,17 +46,22 @@ def pressKey(event):
 
 
 class BrainData:
-    def __init__(self, pathFolder, perAT8Cutoff, printData=False, NBars=None):
+    def __init__(self, pathFolder, perAT8Cutoff, plotAT8, plotAT8Cutoff,
+                 printData=False, NBars=None):
         # Parameters: Files
         self.pathFolder = pathFolder
 
         # Parameters: Data
         self.patientsOfInterest = [] # Selected donors with localized AT8
+        self.dataPOI = pd.DataFrame()
         self.perAT8 = None
         self.perAT8High = None
 
         # Parameters: Figures
+        self.plotAT8 = plotAT8
+        self.plotAT8Cutoff = plotAT8Cutoff
         self.figSize = (9.5, 8)
+        self.figSizeTall = (12, 9.5)
         self.figSizeW = (16, 8)
         self.labelSizeTitle = 18
         self.labelSizeAxis = 16
@@ -113,9 +119,9 @@ class BrainData:
         print(f'Datasets:\n'
               f'     {greenLight}{name1}\n'
               f'     {name2}{resetColor}\n')
-        matchID = list(data2.loc[:, 'Donor ID'])
+        matchID = list(data2.index)
         missingID, missingIDCount = [], 0
-        for index, donorID in enumerate(data1.loc[:, 'Donor ID']):
+        for index, donorID in enumerate(data1.index):
             if donorID not in matchID:
                 missingIDCount += 1
         if missingIDCount == 0:
@@ -140,7 +146,9 @@ class BrainData:
                   '=================================')
             print(f'Loading File: {greenLight}{fileName}\n'
                   f'    {greenDark}{fileLocation}{resetColor}')
-            data = pd.read_csv(fileLocation, index_col=0)
+            data = pd.read_csv(fileLocation, index_col=1)
+            if 'Unnamed: 0' in data.columns:
+                data = data.drop('Unnamed: 0', axis=1)
         elif '.fastq' in fileExt:
             print('================================ Load Fastq File '
                   '================================')
@@ -153,8 +161,7 @@ class BrainData:
             print(f'Loading File: {greenLight}{fileName}\n'
                   f'    {greenDark}{fileLocation}{resetColor}')
             if os.path.exists(fileLocation):
-                data = pd.read_excel(fileLocation)
-
+                data = pd.read_excel(fileLocation, index_col=0)
         else:
             print(f'\n{orange}ERROR: Unknown File Extension: {cyan}{fileName}\n')
             sys.exit(1)
@@ -170,74 +177,8 @@ class BrainData:
 
 
 
-    def processAT8(self, data, name, header, divisorHeader):
-        print('============================== Evaluating Datasets '
-              '==============================')
-        print(f'Datasets:\n'
-              f'     {greenLight}{name}{resetColor}\n\n'
-              f'Evaluating Headers: {purple}{header}{resetColor}')
-
-        # Determent Relevant Columns
-        columns = []
-        columnsNew = []
-        indexColumns = []
-        for index, column in enumerate(data.columns):
-            if header in column:
-                print(index, column)
-                if divisorHeader in column:
-                    divisorHeader = column
-                    print(f'Divisor: {pink}{divisorHeader}{resetColor}')
-                else:
-                    columns.append(column)
-                    columnsNew.append(f'% AT8 positive {column.split("_")[1]}')
-                    indexColumns.append(index)
-                    print(f'     Column: {pink}{column}{resetColor}')
-        print('\n')
-
-        # Initialize DFs
-        colStart, colEnd = indexColumns[0], indexColumns[-1] + 1
-        self.perAT8 = pd.DataFrame(data.loc[:, data.columns[colStart]:
-                                               data.columns[colEnd]],
-                                   columns=columnsNew,
-                                   index=list(data.loc[:, 'Donor ID']))
-        self.perAT8High = pd.DataFrame(data.loc[:, data.columns[colStart]:
-                                                   data.columns[colEnd]],
-                                       columns=columnsNew, index=[])
-
-        # Evaluate Data
-        for index, donorID in enumerate(data.loc[:, 'Donor ID']):
-            totalSignal = data.iloc[index, colStart:colEnd]
-            totalSignal.astype(float) # Convert to floats
-            totalSignal = totalSignal.sum()
-            for indexCol, column in enumerate(self.perAT8.columns):
-                self.perAT8.loc[donorID, column] = (data.loc[index, columns[indexCol]] /
-                                           totalSignal) * 100
-            
-            # Collect samples with localized AT8 distributions
-            maxVal = self.perAT8.iloc[index, :].max()
-            if maxVal > self.perAT8Cutoff:
-                self.patientsOfInterest.append(donorID)
-                self.perAT8High.loc[donorID] = self.perAT8.iloc[index, :]
-        print(f'Percent AT8 positive in each layer:\n{self.perAT8}\n\n')
-        if self.patientsOfInterest:
-            print('Donors localized AT8:')
-            for donorID in self.patientsOfInterest:
-                print(f'{purple}{donorID}{resetColor}:\n'
-                      f'{self.perAT8High.loc[donorID, :]}\n')
-        print(f'{resetColor}')
-
-        # Plot the data
-        barColors = ['#FF8800', '#2E9418', '#56F1FF', '#FF0080', '#A800FF']
-        self.plotBarGraph(data=self.perAT8, dataType='% AT8',
-                          barColors=barColors, barWidth=0.2)
-        self.plotBarGraph(data=self.perAT8High, dataType='% AT8',
-                          barColors=barColors, barWidth=0.2, cutoff=True)
-
-
-
-
-    def plotBarGraph(self, data, dataType, barColors='#CC5500', barWidth=0.75,
-                     cutoff=False):
+    def plotBarGraph(self, data, dataType, barColors='#CC5500',
+                     barWidth=0.75, cutoff=False):
         if self.NBars is not None:
             data = len(data.iloc[:, 0:self.NBars])
         title = ''
@@ -267,7 +208,7 @@ class BrainData:
             sys.exit(1)
 
 
-        # Params: xticks
+        # Params: x ticks
         xLabels = data.index
         spacingFactor = 1.5  # or try 2.0, 2.5, etc.
         xTicks = np.arange(len(xLabels)) * spacingFactor
@@ -311,4 +252,247 @@ class BrainData:
 
         fig.canvas.mpl_connect('key_press_event', pressKey)
         fig.tight_layout()
+        plt.show()
+
+
+
+    def processAT8(self, data, name, header, divisorHeader):
+        print('============================== Evaluating Datasets '
+              '==============================')
+        print(f'Datasets:\n'
+              f'     {greenLight}{name}{resetColor}\n\n'
+              f'Evaluating Headers: {purple}{header}{resetColor}')
+
+        # Determent Relevant Columns
+        columns = []
+        columnsNew = []
+        indexColumns = []
+        for index, column in enumerate(data.columns):
+            if header in column:
+                print(index, column)
+                if divisorHeader in column:
+                    divisorHeader = column
+                    print(f'Divisor: {pink}{divisorHeader}{resetColor}')
+                else:
+                    columns.append(column)
+                    columnsNew.append(f'% AT8 positive {column.split("_")[1]}')
+                    indexColumns.append(index)
+                    print(f'     Column: {pink}{column}{resetColor}')
+        print('\n')
+
+        # Initialize DFs
+        colStart, colEnd = indexColumns[0], indexColumns[-1] + 1
+        self.perAT8 = pd.DataFrame(data.loc[:, data.columns[colStart]:
+                                               data.columns[colEnd]],
+                                   columns=columnsNew,
+                                   index=list(data.index))
+        self.perAT8High = pd.DataFrame(data.loc[:, data.columns[colStart]:
+                                                   data.columns[colEnd]],
+                                       columns=columnsNew, index=[])
+
+        # Evaluate Data
+        for index, donorID in enumerate(data.index):
+            totalSignal = data.iloc[index, colStart:colEnd]
+            totalSignal.astype(float) # Convert to floats
+            totalSignal = totalSignal.sum()
+            for indexCol, column in enumerate(self.perAT8.columns):
+                self.perAT8.loc[donorID, column] = (
+                        (data.loc[donorID, columns[indexCol]] / totalSignal) * 100)
+            
+            # Collect samples with localized AT8 distributions
+            maxVal = self.perAT8.iloc[index, :].max()
+            if maxVal > self.perAT8Cutoff:
+                self.patientsOfInterest.append(donorID)
+                self.perAT8High.loc[donorID] = self.perAT8.iloc[index, :]
+        print(f'Percent AT8 positive in each layer:\n{self.perAT8}\n\n')
+        if self.patientsOfInterest:
+            print('Donors localized AT8:')
+            for donorID in self.patientsOfInterest:
+                print(f'{purple}{donorID}{resetColor}:\n'
+                      f'{self.perAT8High.loc[donorID, :]}\n')
+            self.dataPOI.index = self.patientsOfInterest
+        print(f'{resetColor}')
+
+        # Plot the data
+        barColors = ['#FF8800', '#2E9418', '#56F1FF', '#FF0080', '#A800FF']
+        if self.plotAT8:
+            self.plotBarGraph(data=self.perAT8, dataType='% AT8',
+                              barColors=barColors, barWidth=0.2)
+        if self.plotAT8Cutoff:
+            self.plotBarGraph(data=self.perAT8High, dataType='% AT8',
+                              barColors=barColors, barWidth=0.2, cutoff=True)
+
+        return self.patientsOfInterest
+
+
+
+    # def DOI(self, data):
+    #     print('============================== Donors Of Interest '
+    #           '===============================')
+    #     print(f'Selected donors: {pink}AT8{resetColor} > '
+    #           f'{red}{self.perAT8Cutoff} %{resetColor}')
+    #     numColumns = len(data.columns) - 1
+    #     print(f'Num Columns: {red}{numColumns}{resetColor}')
+    #     selectColumns = 5
+    #     print(f'Find step size with even division for consistent '
+    #           f'numbers of columns: {red}{numColumns}{resetColor}')
+    #
+    #     for donorID in self.patientsOfInterest:
+    #         print(f'     Donor ID: {purple}{donorID}{resetColor}\n')
+    #         for index in range(0, numColumns, selectColumns + 1):
+    #             if index >= numColumns:
+    #                 break
+    #             indexLastCol = index + selectColumns
+    #             print(f'Index: {red}{index}{resetColor}\n'
+    #                   f'     End: {numColumns}\n'
+    #                   f'     Last: {indexLastCol}\n')
+    #             colStart = data.columns[index]
+    #             if indexLastCol > numColumns:
+    #                 colEnd = data.columns[numColumns]
+    #             else:
+    #                 colEnd = data.columns[index + selectColumns]
+    #
+    #             print(f'Select: {purple}{colStart}{resetColor} - '
+    #                   f'{purple}{colEnd}{resetColor}')
+    #             print(f'{data.loc[donorID, colStart:colEnd]}\n')
+    #             print(f'{red}{index} - {index + selectColumns}{resetColor}\n\n')
+    #             time.sleep(0)
+    #         sys.exit()
+    #     print()
+
+
+    def DOI(self, data):
+        print('============================== Donors Of Interest '
+              '===============================')
+        print(f'Selected donors: {pink}AT8{resetColor} > '
+              f'{red}{self.perAT8Cutoff} %{resetColor}')
+        # dataPOI = pd.DataFrame(None, index=self.patientsOfInterest)
+        for donorID in self.patientsOfInterest:
+            print(f'     Donor ID: {purple}{donorID}{resetColor}')
+            self.dataPOI.loc[donorID, :] += data.loc[donorID, :]
+        print('\n')
+
+        dataTag = f'Localized AT8 > {self.perAT8Cutoff} %'
+        self.getMetadata(data, dataTag=dataTag)
+
+    def getMetadata(self, data, dataTag):
+        print('=================================== Metadata '
+              '====================================')
+        # Select data for POI
+        dataFields = ['Highest level of education', 'APOE Genotype', 'Cognitive Status',
+                      'Age of onset cognitive symptoms', 'Age of Dementia diagnosis',
+                      'Last CASI Score', 'Interval from last CASI in months',
+                      'Last MMSE Score', 'Interval from last MMSE in months',
+                      'Last MOCA Score', 'Interval from last MOCA in months',
+                      'PMI', 'Brain pH', 'Overall AD neuropathological Change',
+                      'Thal', 'Braak', 'CERAD score', 'Overall CAA Score',
+                      'Highest Lewy Body Disease', 'Atherosclerosis',
+                      'Arteriolosclerosis', 'LATE', 'RIN']
+        for donorID in self.dataPOI.index:
+            for field in dataFields:
+                self.dataPOI.loc[donorID, field] = data.loc[donorID, field]
+
+
+        # Evaluate metadata
+        metaData = {}
+        for field in self.dataPOI.columns:
+            datapoints = {}
+            metaData[field] = {}
+            for donorID in self.dataPOI.index:
+                datapoint = self.dataPOI.loc[donorID, field]
+                if isinstance(datapoint, (int, float)) and np.isnan(datapoint):
+                    datapoint = 'NaN'
+                if datapoint in datapoints.keys():
+                    datapoints[datapoint] += 1
+                else:
+                    datapoints[datapoint] = 1
+
+            # Sort dictionaries
+            try:
+                # Numerical sort
+                datapoints = dict(sorted(datapoints.items(), key=lambda x: float(
+                    x) if x == x and x is not None else float('inf')))
+            except:
+                # Alphabetical sort
+                datapoints = dict(sorted(datapoints.items(), key=lambda x: str(x)))
+            metaData[field] = datapoints
+
+
+        # Print data
+        for field in list(metaData.keys()):
+            print(f'Category: {greenLight}{field}{resetColor}')
+            values = metaData[field]
+            for key, value in values.items():
+                print(f'     {pink}{key}{resetColor}, Count: {red}{value}{resetColor}')
+        print(f'\n')
+
+        # Plot the data
+        self.plotMetadata(data=metaData, dataTag=dataTag)
+
+
+
+    def plotMetadata(self, data, dataTag):
+        barColors = plt.cm.Accent.colors
+        title = dataTag
+
+        # Get: Dataset fields
+        fields = list(data.keys())
+
+        # Get: Max value
+        xMax = 0
+        labelsBar = []
+        for field in fields:
+            print(f'Category: {greenLight}{field}{resetColor}')
+            values = data[field]
+            for key, value in values.items():
+                print(f'     {pink}{key}{resetColor}, Count: {red}{value}{resetColor}')
+                labelsBar.append(key)
+                if value > xMax:
+                    xMax = value
+            # print()
+        xMax += 1
+
+
+        # Plot the data
+        fig, ax = plt.subplots(figsize=self.figSizeTall)
+
+        yTicks = []
+        yLabels = []
+        maxCategories = max(len(data[field]) for field in fields)
+        barHeight = 0.9 / maxCategories  # Shrink bar height to fit all bars
+        for indexYCluster, field in enumerate(fields):
+            values = data[field]
+            for j, (label, count) in enumerate(values.items()):
+                yPos = indexYCluster + j * barHeight - (barHeight * len(values)) / 2
+                color = barColors[j % len(barColors)]
+                ax.barh(yPos, count, height=barHeight, color=color)
+
+                # Add count label to the end of each bar
+                ax.text(count + 0.1, yPos, f'{label}', va='center', color='black',
+                        fontsize=8, fontweight='bold')
+            yTicks.append(indexYCluster)
+            yLabels.append(field)
+        ax.set_title(title, fontsize=self.labelSizeTitle, fontweight='bold')
+        ax.set_xlabel('Counts', fontsize=self.labelSizeAxis)
+
+        # Set: xAxis
+        ax.set_xlim(0, xMax)
+
+        # Set: yAxis
+        ax.set_ylim(-1, len(yTicks))
+        ax.set_yticks(yTicks)
+        ax.set_yticklabels([str(label) for label in yLabels])
+
+        # Set tick parameters
+        ax.tick_params(axis='both', which='major', length=self.tickLength,
+                       labelsize=self.labelSizeTicks, width=self.lineThickness)
+
+        # Set the thickness of the figure border
+        for _, spine in ax.spines.items():
+            spine.set_visible(True)
+            spine.set_linewidth(self.lineThickness)
+
+        ax.grid(axis='x', linestyle='--', color='black')
+        fig.canvas.mpl_connect('key_press_event', pressKey)
+        plt.tight_layout()
         plt.show()
