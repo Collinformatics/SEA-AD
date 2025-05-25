@@ -424,7 +424,8 @@ class BrainData:
             values = metaData[field]
             for key, value in values.items():
                 print(f'     {pink}{key}{resetColor}, Count: {red}{value}{resetColor}')
-        print(f'\n')
+            print()
+        print()
 
         # Plot the data
         self.plotMetadata(data=metaData, dataTag=dataTag)
@@ -442,14 +443,11 @@ class BrainData:
         xMax = 0
         labelsBar = []
         for field in fields:
-            print(f'Category: {greenLight}{field}{resetColor}')
             values = data[field]
             for key, value in values.items():
-                print(f'     {pink}{key}{resetColor}, Count: {red}{value}{resetColor}')
                 labelsBar.append(key)
                 if value > xMax:
                     xMax = value
-            # print()
         xMax += 1
 
 
