@@ -11,4 +11,33 @@
 Esc: Close the current figure
 
 E: End the script that is currently running
+
+
+# Selecting: Patients of Interest
+
+Distribution of AT8 Signal:
+
+- Input: biomarkers.py
   
+  This input will allow you to select patients of interest based upon the distributions of AT8 signal in layers: 1, 2, 3, 4, 5-6
+
+        # Input 2: Data Inspection
+        inAT8Cutoff = []
+
+- Population with localzed AT8 Signal
+
+  To select donors with: Maximum % of AT8 Signal > 45%
+
+        inAT8Cutoff = [45]
+
+- Population with evenly distributed AT8 Signal
+
+  To select donors with: Maximum % of AT8 Signal < 45%
+
+        inAT8Cutoff = [-45]
+
+- Population with maximum AT8 Signal within a given range
+
+  To select donors with: 45 %  > Maximum % of AT8 Signal > 40 %
+
+        inAT8Cutoff = [45, 40]
