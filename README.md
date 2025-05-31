@@ -10,5 +10,5 @@
 
 Esc: Close the current figure
 
-Backspace: Terminate the script that is currently running
+E: End the script that is currently running
   
