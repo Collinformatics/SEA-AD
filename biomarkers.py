@@ -5,7 +5,7 @@
 # AT8: Anti-Phospho-Tau (Ser202, Thr205) Monoclonal Antibody
 
 
-from functions import BrainData
+from functions import Brains
 import pandas as pd
 import sys
 
@@ -15,10 +15,12 @@ import sys
 # Input 1: Select Dataset
 inPathFolder = '/path/SEA-AD/'
 inLoadFiles = ['sea-ad_all_mtg_quant_neuropath_bydonorid_081122.csv',
-               'sea-ad_cohort_donor_metadata_072524.xlsx']
+               'sea-ad_cohort_donor_metadata_072524.xlsx',
+               'sea-ad_cohort_mtg-tissue_extractions-luminex_data.xlsx']
 
 # Input 2: Data Inspection
-inAT8Cutoff = [45, 40]
+inAT8Cutoff = [60]
+
 
 # Input 3: Plotting Data
 inPlotAT8 = False
@@ -50,23 +52,21 @@ resetColor = '\033[0m'
 
 # ===================================== Import Data ======================================
 # Initialize class
-brains = BrainData(pathFolder=inPathFolder, perAT8Cutoff=inAT8Cutoff, plotAT8=inPlotAT8,
-                   plotAT8Cutoff=inPlotAT8Cutoff)
+brains = Brains(pathFolder=inPathFolder, files=inLoadFiles, perAT8Cutoff=inAT8Cutoff,
+                   plotAT8=inPlotAT8, plotAT8Cutoff=inPlotAT8Cutoff)
 
 # Load Data
-quantNeuropathy = brains.loadData(fileName=inLoadFiles[0])
-metadata = brains.loadData(fileName=inLoadFiles[1])
+brains.loadData()
 
 
 
 # ==================================== Evaluate Data =====================================
 # Compair Datasets
-brains.compairDF(data1=quantNeuropathy, name1=inLoadFiles[0],
-                 data2=metadata, name2=inLoadFiles[1])
+brains.compairDF()
 
 # Tau distributions
-brains.processAT8(data=quantNeuropathy, name=inLoadFiles[0],
-                  header='total AT8 positive', divisorHeader='Grey matter')
+brains.processAT8(name=inLoadFiles[0], header='total AT8 positive',
+                  divisorHeader='Grey matter')
 
 # Scan Donors Of Interest
-brains.DOI(data=metadata)
+brains.DOI()

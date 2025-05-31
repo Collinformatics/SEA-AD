@@ -45,24 +45,33 @@ def pressKey(event):
 
 
 
-class BrainData:
-    def __init__(self, pathFolder, perAT8Cutoff, plotAT8, plotAT8Cutoff,
+class Brains:
+    def __init__(self, pathFolder, files, perAT8Cutoff, plotAT8, plotAT8Cutoff,
                  printData=False, NBars=None):
         # Parameters: Files
         self.pathFolder = pathFolder
+        self.files = files
+
+        # Parameters: Datasets
+        self.neuropathy = None
+        self.metadata = None
+        self.biomarkers = None
 
         # Parameters: Data
+        self.biomarkerExtractions = None
         self.patientsOfInterest = [] # Selected donors with localized AT8
         self.numPatients = 0
         self.dataPOI = pd.DataFrame()
         self.perAT8 = None
         self.perAT8Select = None
+        self.metadataPOI = {}
+        self.biomarkersPOI = {}
 
         # Parameters: Figures
         self.plotAT8 = plotAT8
         self.plotAT8Cutoff = plotAT8Cutoff
         self.figSize = (9.5, 8)
-        self.figSizeTall = (12, 9.5)
+        self.figSizeLarge = (16, 9.5)
         self.figSizeW = (16, 8)
         self.labelSizeTitle = 18
         self.labelSizeAxis = 16
@@ -117,68 +126,87 @@ class BrainData:
 
 
 
-    @staticmethod
-    def compairDF(data1, name1, data2, name2):
+    def compairDF(self):
         print('=============================== Compare Datasets '
               '================================')
-        print(f'Datasets:\n'
-              f'     {greenLight}{name1}\n'
-              f'     {name2}{resetColor}\n')
-        matchID = list(data2.index)
+        fileBase = self.files[0]
+        print(f'Comparing Datasets:{greenLight}')
+        for file in self.files:
+            print(f'     {file}')
+        print(f'{resetColor}\n')
+
+
+        matchID = list(self.metadata.index)
         missingID, missingIDCount = [], 0
-        for index, donorID in enumerate(data1.index):
+        for index, donorID in enumerate(self.neuropathy.index):
             if donorID not in matchID:
                 missingIDCount += 1
+                missingID.append(donorID)
         if missingIDCount == 0:
             print(f'All Donor IDs match\n\n')
         else:
             print(f'Missing Donor IDs: {missingIDCount}\n{missingID}\n\n')
 
+        sys.exit()
 
 
-    def loadData(self, fileName):
-        data = None
-        fileLocation = os.path.join(self.pathFolder, fileName)
-        if not os.path.exists(fileLocation):
-            print(f'\n{orange}ERROR: File not found\n'
-                  f'     {cyan}{fileLocation}\n')
-            sys.exit(1)
 
-        # Evaluate: File extension
-        fileExt = fileName[-7:]
-        if '.csv' in fileExt:
-            print('================================= Load CSV File '
-                  '=================================')
-            print(f'Loading File: {greenLight}{fileName}\n'
-                  f'    {greenDark}{fileLocation}{resetColor}')
-            data = pd.read_csv(fileLocation, index_col=1)
-            if 'Unnamed: 0' in data.columns:
-                data = data.drop('Unnamed: 0', axis=1)
-        elif '.fastq' in fileExt:
-            print('================================ Load Fastq File '
-                  '================================')
-            print(f'Loading File: {greenLight}{fileName}\n'
-                  f'    {greenDark}{fileLocation}{resetColor}')
-            sys.exit(1)
-        elif '.xlsx' in fileExt:
-            print('================================ Load Execl File '
-                  '================================')
-            print(f'Loading File: {greenLight}{fileName}\n'
-                  f'    {greenDark}{fileLocation}{resetColor}')
-            if os.path.exists(fileLocation):
-                data = pd.read_excel(fileLocation, index_col=0)
-        else:
-            print(f'\n{orange}ERROR: Unknown File Extension: {cyan}{fileName}\n')
-            sys.exit(1)
+    def loadData(self):
+        for fileName in self.files:
+            numRows = 0
 
-        print(f'\nTotal Patients: {red}{len(data.iloc[:, 0])}{resetColor}\n')
-        if self.printData:
-            print(f'Loaded Data: {greenLight}{fileName}{resetColor}\n'
-                  f'{data}\n\n')
-        else:
-            print()
+            # Inspect file
+            fileLocation = os.path.join(self.pathFolder, fileName)
+            if not os.path.exists(fileLocation):
+                print(f'\n{orange}ERROR: File not found\n'
+                      f'     {cyan}{fileLocation}\n')
+                sys.exit(1)
 
-        return data
+            # Evaluate: File extension
+            fileExt = fileName[-7:]
+            if '.csv' in fileExt:
+                # Load: CSV
+                print('================================= Load CSV File '
+                      '=================================')
+                print(f'Loading File: {greenLight}{fileName}\n'
+                      f'    {greenDark}{fileLocation}{resetColor}')
+                if fileName == 'sea-ad_all_mtg_quant_neuropath_bydonorid_081122.csv':
+                    self.neuropathy = pd.read_csv(fileLocation, index_col=1)
+                    if 'Unnamed: 0' in self.neuropathy.columns:
+                        self.neuropathy = self.neuropathy.drop('Unnamed: 0', axis=1)
+                    numRows = len(self.neuropathy.index)
+                else:
+                    print(f'\n{orange}ERROR: File not found: {cyan}{fileName}\n')
+                    sys.exit(1)
+
+            # Load: Excel
+            elif '.xlsx' in fileExt:
+                print('================================ Load Execl File '
+                      '================================')
+                print(f'Loading File: {greenLight}{fileName}\n'
+                      f'    {greenDark}{fileLocation}{resetColor}')
+                if os.path.exists(fileLocation):
+                    if fileName == 'sea-ad_cohort_donor_metadata_072524.xlsx':
+                        self.metadata = pd.read_excel(fileLocation, index_col=0)
+
+                        # Drop rows where the index is NaN
+                        self.metadata = self.metadata[self.metadata.index.notna()]
+                        numRows = len(self.metadata.index)
+                    elif fileName == 'sea-ad_cohort_mtg-tissue_extractions-luminex_data.xlsx':
+                        self.biomarkers = pd.read_excel(fileLocation, header=[0, 1],
+                                                        index_col=0)
+                        self.biomarkerExtractions = (
+                            self.biomarkers.columns.get_level_values(0))
+                        self.biomarkers.columns = (
+                            self.biomarkers.columns.get_level_values(1))
+                        numRows = len(self.biomarkers.index)
+                    else:
+                        print(f'\n{orange}ERROR: File not found: {cyan}{fileName}\n')
+                        sys.exit(1)
+            else:
+                print(f'\n{orange}ERROR: Unknown File Extension: {cyan}{fileName}\n')
+                sys.exit(1)
+            print(f'\nTotal Rows: {red}{numRows}{resetColor}\n\n')
 
 
 
@@ -261,7 +289,7 @@ class BrainData:
 
 
 
-    def processAT8(self, data, name, header, divisorHeader):
+    def processAT8(self, name, header, divisorHeader):
         print('============================== Evaluating Datasets '
               '==============================')
         print(f'Datasets:\n'
@@ -272,7 +300,7 @@ class BrainData:
         columns = []
         columnsNew = []
         indexColumns = []
-        for index, column in enumerate(data.columns):
+        for index, column in enumerate(self.neuropathy.columns):
             if header in column:
                 print(index, column)
                 if divisorHeader in column:
@@ -286,16 +314,19 @@ class BrainData:
         print('\n')
 
         # Initialize DFs
-        colStart, colEnd = indexColumns[0], indexColumns[-1] + 1
-        self.perAT8 = pd.DataFrame(data.loc[:, data.columns[colStart]:
-                                               data.columns[colEnd]],
-                                   columns=columnsNew,
-                                   index=list(data.index))
-        self.perAT8Select = pd.DataFrame(data.loc[:, data.columns[colStart]:
-                                                   data.columns[colEnd]],
-                                       columns=columnsNew, index=[])
+        colStart = self.neuropathy.columns[indexColumns[0]]
+        colEnd = self.neuropathy.columns[indexColumns[-1] + 1]
+        self.perAT8 = self.neuropathy.loc[:, colStart:colEnd]
+        print(f'AT8 Levels: {pink}Neuropathy{resetColor}\n{self.perAT8}\n\n')
 
-        def selectDOI():
+        sys.exit()
+
+        self.perAT8Select = pd.DataFrame(self.neuropathy.loc[:, colStart:colEnd],
+                                         columns=columnsNew, index=[])
+        # print(f'Neurpoathy:\n{self.neuropathy}\n\nAT8:\n{self.perAT8}\n\n')
+
+        def evaluateAT8():
+            # Evaluate AT8 levels
             if self.selectionType == '>':
                 if maxVal > self.perAT8Cutoff:
                     self.patientsOfInterest.append(donorID)
@@ -314,42 +345,37 @@ class BrainData:
                 sys.exit()
 
 
+        # Define: Selection type
         if (len(self.perAT8Cutoff)) == 1:
             self.perAT8Cutoff = self.perAT8Cutoff[0]
             if self.perAT8Cutoff > 0:
-                print(f'Greater Than: {self.perAT8Cutoff}')
                 self.selectionType = '>'
             else:
                 self.perAT8Cutoff = abs(self.perAT8Cutoff)
                 self.selectionType = '<'
         else:
             self.perAT8Cutoff = sorted(self.perAT8Cutoff, reverse=True)
-            print(f'Range: {self.perAT8Cutoff}')
             self.selectionType = 'Range'
 
+
         # Evaluate Data
-        for index, donorID in enumerate(data.index):
-            totalSignal = data.iloc[index, colStart:colEnd]
-            totalSignal.astype(float)  # Convert to floats
+        for index, donorID in enumerate(self.neuropathy.index):
+            print(index, donorID)
+            totalSignal = self.neuropathy.iloc[index, colStart:colEnd]
+            totalSignal.astype(float) # Convert to floats
             totalSignal = totalSignal.sum()
             for indexCol, column in enumerate(self.perAT8.columns):
                 self.perAT8.loc[donorID, column] = (
-                        data.loc[donorID, columns[indexCol]] / totalSignal)
+                        self.neuropathy.loc[donorID, columns[indexCol]] / totalSignal)
                 self.perAT8.loc[donorID, column] *= 100
             # Collect samples with localized AT8 distributions
             maxVal = self.perAT8.iloc[index, :].max()
-            selectDOI()
+            evaluateAT8()
         print(f'Percent AT8 positive in each layer:\n{self.perAT8}\n\n')
-        print(f'Donors Of Interest: {pink}Localized AT8{resetColor}')
-        for donorID in self.patientsOfInterest:
-            print(f'{purple}{donorID}{resetColor}:\n'
-                  f'{self.perAT8Select.loc[donorID, :]}\n')
         self.dataPOI.index = self.patientsOfInterest
         self.numPatients = len(self.patientsOfInterest)
-        print(f'Number of selected donors: {red}{self.numPatients}{resetColor}\n\n')
-        if self.numPatients == 0:
-            print(f'No donor were selected')
-            sys.exit()
+
+        print(f'AT8: Select\n{self.perAT8Select}\n\n')
 
 
         # Plot the data
@@ -361,65 +387,38 @@ class BrainData:
             self.plotBarGraph(data=self.perAT8Select, dataType='% AT8',
                               barColors=barColors, barWidth=0.2, cutoff=True)
 
-        return self.patientsOfInterest
 
 
-
-    # def DOI(self, data):
-    #     print('============================== Donors Of Interest '
-    #           '===============================')
-    #     print(f'Selected donors: {pink}AT8{resetColor} > '
-    #           f'{red}{self.perAT8Cutoff} %{resetColor}')
-    #     numColumns = len(data.columns) - 1
-    #     print(f'Num Columns: {red}{numColumns}{resetColor}')
-    #     selectColumns = 5
-    #     print(f'Find step size with even division for consistent '
-    #           f'numbers of columns: {red}{numColumns}{resetColor}')
-    #
-    #     for donorID in self.patientsOfInterest:
-    #         print(f'     Donor ID: {purple}{donorID}{resetColor}\n')
-    #         for index in range(0, numColumns, selectColumns + 1):
-    #             if index >= numColumns:
-    #                 break
-    #             indexLastCol = index + selectColumns
-    #             print(f'Index: {red}{index}{resetColor}\n'
-    #                   f'     End: {numColumns}\n'
-    #                   f'     Last: {indexLastCol}\n')
-    #             colStart = data.columns[index]
-    #             if indexLastCol > numColumns:
-    #                 colEnd = data.columns[numColumns]
-    #             else:
-    #                 colEnd = data.columns[index + selectColumns]
-    #
-    #             print(f'Select: {purple}{colStart}{resetColor} - '
-    #                   f'{purple}{colEnd}{resetColor}')
-    #             print(f'{data.loc[donorID, colStart:colEnd]}\n')
-    #             print(f'{red}{index} - {index + selectColumns}{resetColor}\n\n')
-    #             time.sleep(0)
-    #         sys.exit()
-    #     print()
-
-
-    def DOI(self, data):
+    def DOI(self):
         print('============================== Donors Of Interest '
               '===============================')
         print(f'Selected donors: {pink}AT8{resetColor} > '
-              f'{red}{self.perAT8Cutoff} %{resetColor}')
+              f'{red}{self.perAT8Cutoff} %{resetColor}\n')
+        print(f'Donors Of Interest: {pink}Localized AT8{resetColor}')
         for donorID in self.patientsOfInterest:
-            print(f'     Donor ID: {purple}{donorID}{resetColor}')
-            self.dataPOI.loc[donorID, :] += data.loc[donorID, :]
-        print('\n')
+            print(f'{purple}{donorID}{resetColor}:\n'
+                  f'{self.perAT8Select.loc[donorID, :]}\n')
+        print(f'Number of selected donors: {red}{self.numPatients}{resetColor}\n\n')
+        if self.numPatients == 0:
+            print(f'No donor were selected')
+            sys.exit()
+        sys.exit()
 
+
+        # Define: Selection type
         if self.selectionType == 'Range':
             dataTag = (f'{self.perAT8Cutoff[0]} %  > Maximum AT8 Signal > '
                        f'{self.perAT8Cutoff[1]} %')
         else:
             dataTag = f'Maximum AT8 Signal {self.selectionType} {self.perAT8Cutoff} %'
-        self.getMetadata(data, dataTag=dataTag)
+
+        # Process data
+        self.getMetadata(dataTag=dataTag)
+        self.biomarkers()
 
 
 
-    def getMetadata(self, data, dataTag):
+    def getMetadata(self, dataTag):
         print('=================================== Metadata '
               '====================================')
         # Select data for POI
@@ -433,17 +432,18 @@ class BrainData:
         # 'Interval from last CASI in months', 'Interval from last MMSE in months',
         # 'Interval from last MOCA in months',
 
-        # Ger: Metadata
-        for donorID in self.dataPOI.index:
+        # Get: Metadata
+        for donorID in self.patientsOfInterest:
             for field in dataFields:
-                self.dataPOI.loc[donorID, field] = data.loc[donorID, field]
-
+                print(f'Field: {field}\n\n'
+                      f'{self.metadata}')
+                self.dataPOI.loc[donorID, field] = self.metadata.loc[donorID, field]
 
         # Evaluate metadata
-        metadata = {}
         for field in self.dataPOI.columns:
+            print(field)
             datapoints = {}
-            metadata[field] = {}
+            self.metadataPOI[field] = {}
             for donorID in self.dataPOI.index:
                 datapoint = self.dataPOI.loc[donorID, field]
                 if isinstance(datapoint, (int, float)) and np.isnan(datapoint):
@@ -461,13 +461,13 @@ class BrainData:
             except:
                 # Alphabetical sort
                 datapoints = dict(sorted(datapoints.items(), key=lambda x: str(x)))
-            metadata[field] = datapoints
+            self.metadataPOI[field] = datapoints
 
 
         # Print data
-        for field in list(metadata.keys()):
+        for field in list(self.metadataPOI.keys()):
             print(f'Category: {greenLight}{field}{resetColor}')
-            values = metadata[field]
+            values = self.metadataPOI[field]
             for key, value in values.items():
                 print(f'     {pink}{key}{resetColor}, Count: {red}{value}{resetColor}')
             print()
@@ -475,7 +475,7 @@ class BrainData:
 
         # Evaluate: Dementia stats
         dementiaCounts = 0
-        for key, count in metadata['Cognitive Status'].items():
+        for key, count in self.metadataPOI['Cognitive Status'].items():
             if 'dementia' in key.lower():
                 dementiaCounts += count
                 break
@@ -486,24 +486,23 @@ class BrainData:
               f'     Prevalence: {red}{round(dementiaPercent, self.roundDeci)} %'
               f'{resetColor}\n')
 
-
         # Plot the data
-        self.plotMetadata(data=metadata, dataTag=dataTag, N=self.numPatients)
+        self.plotMetadata(dataTag=dataTag, N=self.numPatients)
 
 
 
-    def plotMetadata(self, data, dataTag, N):
+    def plotMetadata(self, dataTag, N):
         barColors = plt.cm.Accent.colors
         title = f'{dataTag}\nN = {N} Patients'
 
         # Get: Dataset fields
-        fields = list(data.keys())
+        fields = list(self.metadataPOI.keys())
 
         # Get: Max value
         xMax = 0
         labelsBar = []
         for field in fields:
-            values = data[field]
+            values = self.metadataPOI[field]
             for key, value in values.items():
                 labelsBar.append(key)
                 if value > xMax:
@@ -512,14 +511,14 @@ class BrainData:
 
 
         # Plot the data
-        fig, ax = plt.subplots(figsize=self.figSizeTall)
+        fig, ax = plt.subplots(figsize=self.figSizeLarge)
 
         yTicks = []
         yLabels = []
-        maxCategories = max(len(data[field]) for field in fields)
+        maxCategories = max(len(self.metadataPOI[field]) for field in fields)
         barHeight = 0.9 / maxCategories  # Shrink bar height to fit all bars
         for indexYCluster, field in enumerate(fields):
-            values = data[field]
+            values = self.metadataPOI[field]
             for j, (label, count) in enumerate(values.items()):
                 yPos = indexYCluster + j * barHeight - (barHeight * len(values)) / 2
                 color = barColors[j % len(barColors)]
@@ -555,3 +554,18 @@ class BrainData:
         fig.canvas.mpl_connect('key_press_event', pressKey)
         plt.tight_layout()
         plt.show()
+
+
+
+    def processBioMarkers(self):
+        print('============================== Evaluating Datasets '
+              '==============================')
+
+        # Get DOI biomarkers
+        for donorID in self.patientsOfInterest:
+            self.biomarkersDOI = 0
+
+        print(f'Biomarkers:')
+
+
+        sys.exit()
