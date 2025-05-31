@@ -4,9 +4,7 @@ from matplotlib.colors import LinearSegmentedColormap
 import numpy as np
 import os
 import pandas as pd
-import seaborn as sns
 import sys
-import time
 
 
 
@@ -87,7 +85,7 @@ class Brains:
         self.printData = printData
 
         # Parameters: Miscellaneous
-        self.roundDeci = 3
+        self.roundDecimal = 3
 
 
 
@@ -127,7 +125,7 @@ class Brains:
 
 
 
-    def compairDF(self):
+    def compairDatasetDonors(self):
         print('=============================== Compare Datasets '
               '================================')
         for index in range(1, len(self.files)):
@@ -139,8 +137,8 @@ class Brains:
             elif index == 2:
                 matchData = self.biomarkers
             else:
-                print(f'{orange}ERROR: Write A Script To Check The {cyan}Donor IDs'
-                      f'{orange} In The File\n'
+                print(f'\n{orange}ERROR: Write A Script To Check The {cyan}Donor IDs'
+                      f'{orange} For\n'
                       f'    {cyan}{self.files[index]}\n')
                 sys.exit(1)
 
@@ -155,9 +153,8 @@ class Brains:
                 print(f'All Donor IDs match\n')
             else:
                 print(f'Missing Donor IDs: {missingIDCount}\n{missingID}\n')
+                sys.exit(1)
         print()
-
-        sys.exit()
 
 
 
@@ -179,12 +176,13 @@ class Brains:
                 print('================================= Load CSV File '
                       '=================================')
                 print(f'Loading File: {greenLight}{fileName}\n'
-                      f'    {greenDark}{fileLocation}{resetColor}')
+                      f'    {greenDark}{fileLocation}{resetColor}\n')
                 if fileName == 'sea-ad_all_mtg_quant_neuropath_bydonorid_081122.csv':
                     self.neuropathy = pd.read_csv(fileLocation, index_col=1)
                     if 'Unnamed: 0' in self.neuropathy.columns:
                         self.neuropathy = self.neuropathy.drop('Unnamed: 0', axis=1)
                     numRows = len(self.neuropathy.index)
+                    print(f'Dataset: {pink}Neuropathy{resetColor}')
                 else:
                     print(f'\n{orange}ERROR: File not found: {cyan}{fileName}\n')
                     sys.exit(1)
@@ -194,7 +192,7 @@ class Brains:
                 print('================================ Load Execl File '
                       '================================')
                 print(f'Loading File: {greenLight}{fileName}\n'
-                      f'    {greenDark}{fileLocation}{resetColor}')
+                      f'    {greenDark}{fileLocation}{resetColor}\n')
                 if os.path.exists(fileLocation):
                     if fileName == 'sea-ad_cohort_donor_metadata_072524.xlsx':
                         self.metadata = pd.read_excel(fileLocation, index_col=0)
@@ -202,6 +200,7 @@ class Brains:
                         # Drop rows where the index is NaN
                         self.metadata = self.metadata[self.metadata.index.notna()]
                         numRows = len(self.metadata.index)
+                        print(f'Dataset: {pink}Metadata{resetColor}')
                     elif fileName == 'sea-ad_cohort_mtg-tissue_extractions-luminex_data.xlsx':
                         self.biomarkers = pd.read_excel(fileLocation, header=[0, 1],
                                                         index_col=0)
@@ -210,6 +209,7 @@ class Brains:
                         self.biomarkers.columns = (
                             self.biomarkers.columns.get_level_values(1))
                         numRows = len(self.biomarkers.index)
+                        print(f'Dataset: {pink}Biomarkers{resetColor}')
                     elif fileName == 'sea-ad_cohort_mri_volumetrics.xlsx':
                         self.volume = pd.read_excel(fileLocation, index_col=0)
                     else:
@@ -217,9 +217,11 @@ class Brains:
                               f'     {cyan}{fileName}\n')
                         sys.exit(1)
             else:
-                print(f'\n{orange}ERROR: Unknown File Extension {cyan}{fileName}\n')
+                print(f'{orange}ERROR: Unknown File Extension {cyan}{fileName}\n')
                 sys.exit(1)
-            print(f'\nTotal Rows: {red}{numRows}{resetColor}\n\n')
+            print(f'Total Rows: {red}{numRows}{resetColor}\n\n')
+
+        self.compairDatasetDonors()
 
 
 
@@ -302,58 +304,50 @@ class Brains:
 
 
 
-    def processAT8(self, name, header, divisorHeader):
-        print('============================== Evaluating Datasets '
-              '==============================')
-        print(f'Datasets:\n'
-              f'     {greenLight}{name}{resetColor}\n\n'
-              f'Evaluating Headers: {purple}{header}{resetColor}')
+    def processNeuropathy(self, header):
+        print('========================== Evaluating Neuropathy Data '
+              '===========================')
+        print(f'Dataset: {pink}Neuropathy{resetColor}\n'
+              f'Extracting Data: {purple}{header}{resetColor}')
 
         # Determent Relevant Columns
         columns = []
         columnsNew = []
         indexColumns = []
         for index, column in enumerate(self.neuropathy.columns):
+            if 'grey matter' in column.lower():
+                continue
             if header in column:
-                print(index, column)
-                if divisorHeader in column:
-                    divisorHeader = column
-                    print(f'Divisor: {pink}{divisorHeader}{resetColor}')
-                else:
-                    columns.append(column)
-                    columnsNew.append(f'% AT8 positive {column.split("_")[1]}')
-                    indexColumns.append(index)
-                    print(f'     Column: {pink}{column}{resetColor}')
+                columns.append(column)
+                columnsNew.append(f'% AT8 positive {column.split("_")[1]}')
+                indexColumns.append(index)
         print('\n')
+
 
         # Initialize DFs
         colStart = self.neuropathy.columns[indexColumns[0]]
-        colEnd = self.neuropathy.columns[indexColumns[-1] + 1]
+        colEnd = self.neuropathy.columns[indexColumns[-1]]
         self.perAT8 = self.neuropathy.loc[:, colStart:colEnd]
-        print(f'AT8 Levels: {pink}Neuropathy{resetColor}\n{self.perAT8}\n\n')
-
-        sys.exit()
-
         self.perAT8Select = pd.DataFrame(self.neuropathy.loc[:, colStart:colEnd],
-                                         columns=columnsNew, index=[])
-        # print(f'Neurpoathy:\n{self.neuropathy}\n\nAT8:\n{self.perAT8}\n\n')
+                                         columns=self.perAT8.columns, index=[])
+        print(f'AT8 Levels: {pink}Neuropathy{resetColor}\n{self.perAT8}\n\n')
+        print(f'AT8 Distribution: {pink}Percent AT8 signal in each layer{resetColor}\n'
+              f'{self.perAT8}\n\n')
 
-        def evaluateAT8():
+
+        def evaluateSignal():
             # Evaluate AT8 levels
             if self.selectionType == '>':
                 if maxVal > self.perAT8Cutoff:
-                    self.patientsOfInterest.append(donorID)
-                    self.perAT8Select.loc[donorID] = self.perAT8.iloc[index, :]
+                    self.perAT8Select.loc[donorID, :] = self.perAT8.loc[donorID, :]
             elif self.selectionType == '<':
                 if maxVal < self.perAT8Cutoff:
-                    self.patientsOfInterest.append(donorID)
-                    self.perAT8Select.loc[donorID] = self.perAT8.iloc[index, :]
+                    self.perAT8Select.loc[donorID, :] = self.perAT8.iloc[index, :]
             elif self.selectionType == 'Range':
                 if self.perAT8Cutoff[0] > maxVal > self.perAT8Cutoff[1]:
-                    self.patientsOfInterest.append(donorID)
-                    self.perAT8Select.loc[donorID] = self.perAT8.iloc[index, :]
+                    self.perAT8Select.loc[donorID, :] = self.perAT8.iloc[index, :]
             else:
-                print(f'{orange}ERROR: I hhave No Use For This selectionType {cyan}'
+                print(f'{orange}ERROR: I have No Use For This selectionType {cyan}'
                       f'{self.selectionType}\n')
                 sys.exit()
 
@@ -373,22 +367,19 @@ class Brains:
 
         # Evaluate Data
         for index, donorID in enumerate(self.neuropathy.index):
-            print(index, donorID)
-            totalSignal = self.neuropathy.iloc[index, colStart:colEnd]
-            totalSignal.astype(float) # Convert to floats
-            totalSignal = totalSignal.sum()
-            for indexCol, column in enumerate(self.perAT8.columns):
+            signal = self.neuropathy.loc[donorID, colStart:colEnd]
+            signal.astype(float) # Convert to floats
+            totalSignal = signal.sum()
+            for column in columns:
                 self.perAT8.loc[donorID, column] = (
-                        self.neuropathy.loc[donorID, columns[indexCol]] / totalSignal)
+                        self.neuropathy.loc[donorID, column] / totalSignal)
                 self.perAT8.loc[donorID, column] *= 100
-            # Collect samples with localized AT8 distributions
             maxVal = self.perAT8.iloc[index, :].max()
-            evaluateAT8()
-        print(f'Percent AT8 positive in each layer:\n{self.perAT8}\n\n')
+            evaluateSignal() # Collect samples based on AT8 distribution
+        self.perAT8Select = self.perAT8Select.sort_index()
+        self.patientsOfInterest = self.perAT8Select.index
         self.dataPOI.index = self.patientsOfInterest
         self.numPatients = len(self.patientsOfInterest)
-
-        print(f'AT8: Select\n{self.perAT8Select}\n\n')
 
 
         # Plot the data
@@ -400,6 +391,9 @@ class Brains:
             self.plotBarGraph(data=self.perAT8Select, dataType='% AT8',
                               barColors=barColors, barWidth=0.2, cutoff=True)
 
+        # Scan Donors Of Interest
+        self.DOI()
+
 
 
     def DOI(self):
@@ -407,16 +401,12 @@ class Brains:
               '===============================')
         print(f'Selected donors: {pink}AT8{resetColor} > '
               f'{red}{self.perAT8Cutoff} %{resetColor}\n')
-        print(f'Donors Of Interest: {pink}Localized AT8{resetColor}')
-        for donorID in self.patientsOfInterest:
-            print(f'{purple}{donorID}{resetColor}:\n'
-                  f'{self.perAT8Select.loc[donorID, :]}\n')
-        print(f'Number of selected donors: {red}{self.numPatients}{resetColor}\n\n')
+        print(f'Patients Of Interest: {pink}AT8 Distribution{resetColor}\n'
+              f'{self.perAT8Select}\n\n'
+              f'Total Patients Of Interest: {red}{self.numPatients}{resetColor}\n\n')
         if self.numPatients == 0:
             print(f'No donor were selected')
             sys.exit()
-        sys.exit()
-
 
         # Define: Selection type
         if self.selectionType == 'Range':
@@ -425,6 +415,7 @@ class Brains:
         else:
             dataTag = f'Maximum AT8 Signal {self.selectionType} {self.perAT8Cutoff} %'
 
+        sys.exit()
         # Process data
         self.getMetadata(dataTag=dataTag)
         self.biomarkers()
@@ -448,13 +439,10 @@ class Brains:
         # Get: Metadata
         for donorID in self.patientsOfInterest:
             for field in dataFields:
-                print(f'Field: {field}\n\n'
-                      f'{self.metadata}')
                 self.dataPOI.loc[donorID, field] = self.metadata.loc[donorID, field]
 
         # Evaluate metadata
         for field in self.dataPOI.columns:
-            print(field)
             datapoints = {}
             self.metadataPOI[field] = {}
             for donorID in self.dataPOI.index:
@@ -496,7 +484,7 @@ class Brains:
         print(f'Dementia cases in subset: {purple}{dataTag}{resetColor}\n'
               f'     Total Patients: {red}{self.numPatients}{resetColor}\n'
               f'     Dementia Cases: {red}{dementiaCounts}{resetColor}\n'
-              f'     Prevalence: {red}{round(dementiaPercent, self.roundDeci)} %'
+              f'     Prevalence: {red}{round(dementiaPercent, self.roundDecimal)} %'
               f'{resetColor}\n')
 
         # Plot the data

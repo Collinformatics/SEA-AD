@@ -17,9 +17,10 @@ inPathFolder = '/path/SEA-AD/'
 inLoadFiles = ['sea-ad_all_mtg_quant_neuropath_bydonorid_081122.csv',
                'sea-ad_cohort_donor_metadata_072524.xlsx',
                'sea-ad_cohort_mtg-tissue_extractions-luminex_data.xlsx']
+# 'sea-ad_cohort_mri_volumetrics.xlsx'
 
 # Input 2: Data Inspection
-inAT8Cutoff = [60]
+inAT8Cutoff = [44]
 
 
 # Input 3: Plotting Data
@@ -50,23 +51,15 @@ resetColor = '\033[0m'
 
 
 
-# ===================================== Import Data ======================================
-# Initialize class
+# =================================== Initialize Class ===================================
 brains = Brains(pathFolder=inPathFolder, files=inLoadFiles, perAT8Cutoff=inAT8Cutoff,
                    plotAT8=inPlotAT8, plotAT8Cutoff=inPlotAT8Cutoff)
-
-# Load Data
-brains.loadData()
 
 
 
 # ==================================== Evaluate Data =====================================
-# Compair Datasets
-brains.compairDF()
+# Load Data
+brains.loadData()
 
 # Tau distributions
-brains.processAT8(name=inLoadFiles[0], header='total AT8 positive',
-                  divisorHeader='Grey matter')
-
-# Scan Donors Of Interest
-brains.DOI()
+brains.processNeuropathy(header='total AT8 positive')
