@@ -11,7 +11,7 @@ import seaborn as sns
 import sys
 import time
 
-from setuptools.command.rotate import rotate
+
 
 # ===================================== Set Options ======================================
 pd.set_option('display.max_columns', None)
@@ -40,7 +40,7 @@ resetColor = '\033[0m'
 def pressKey(event):
     if event.key == 'escape':
         plt.close()
-    elif event.key == 'backspace':
+    elif event.key == 'e':
         sys.exit()
 
 
@@ -53,9 +53,10 @@ class BrainData:
 
         # Parameters: Data
         self.patientsOfInterest = [] # Selected donors with localized AT8
+        self.numPatients = 0
         self.dataPOI = pd.DataFrame()
         self.perAT8 = None
-        self.perAT8High = None
+        self.perAT8Select = None
 
         # Parameters: Figures
         self.plotAT8 = plotAT8
@@ -289,32 +290,66 @@ class BrainData:
                                                data.columns[colEnd]],
                                    columns=columnsNew,
                                    index=list(data.index))
-        self.perAT8High = pd.DataFrame(data.loc[:, data.columns[colStart]:
+        self.perAT8Select = pd.DataFrame(data.loc[:, data.columns[colStart]:
                                                    data.columns[colEnd]],
                                        columns=columnsNew, index=[])
+
+        def selectDOI():
+            if self.selectionType == '>':
+                if maxVal > self.perAT8Cutoff:
+                    self.patientsOfInterest.append(donorID)
+                    self.perAT8Select.loc[donorID] = self.perAT8.iloc[index, :]
+            elif self.selectionType == '<':
+                if maxVal < self.perAT8Cutoff:
+                    self.patientsOfInterest.append(donorID)
+                    self.perAT8Select.loc[donorID] = self.perAT8.iloc[index, :]
+            elif self.selectionType == 'Range':
+                if self.perAT8Cutoff[0] < maxVal < self.perAT8Cutoff[1]:
+                    self.patientsOfInterest.append(donorID)
+                    self.perAT8Select.loc[donorID] = self.perAT8.iloc[index, :]
+            else:
+                print(f'{orange}ERROR: I have no use for this selectionType {cyan}'
+                      f'{self.selectionType}\n')
+                sys.exit()
+
+
+        if (len(self.perAT8Cutoff)) == 1:
+            self.perAT8Cutoff = self.perAT8Cutoff[0]
+            if self.perAT8Cutoff > 0:
+                print(f'Greater Than: {self.perAT8Cutoff}')
+                self.selectionType = '>'
+            else:
+                self.perAT8Cutoff = abs(self.perAT8Cutoff)
+                self.selectionType = '<'
+        else:
+            self.perAT8Cutoff = sorted(self.perAT8Cutoff)
+            print(f'Range: {self.perAT8Cutoff}')
+            self.selectionType = 'Range'
 
         # Evaluate Data
         for index, donorID in enumerate(data.index):
             totalSignal = data.iloc[index, colStart:colEnd]
-            totalSignal.astype(float) # Convert to floats
+            totalSignal.astype(float)  # Convert to floats
             totalSignal = totalSignal.sum()
             for indexCol, column in enumerate(self.perAT8.columns):
                 self.perAT8.loc[donorID, column] = (
-                        (data.loc[donorID, columns[indexCol]] / totalSignal) * 100)
-            
+                        data.loc[donorID, columns[indexCol]] / totalSignal)
+                self.perAT8.loc[donorID, column] *= 100
             # Collect samples with localized AT8 distributions
             maxVal = self.perAT8.iloc[index, :].max()
-            if maxVal > self.perAT8Cutoff:
-                self.patientsOfInterest.append(donorID)
-                self.perAT8High.loc[donorID] = self.perAT8.iloc[index, :]
+            selectDOI()
         print(f'Percent AT8 positive in each layer:\n{self.perAT8}\n\n')
-        if self.patientsOfInterest:
-            print('Donors localized AT8:')
-            for donorID in self.patientsOfInterest:
-                print(f'{purple}{donorID}{resetColor}:\n'
-                      f'{self.perAT8High.loc[donorID, :]}\n')
-            self.dataPOI.index = self.patientsOfInterest
-        print(f'{resetColor}')
+        print(f'Donors Of Interest: {pink}Localized AT8{resetColor}')
+        for donorID in self.patientsOfInterest:
+            print(f'{purple}{donorID}{resetColor}:\n'
+                  f'{self.perAT8Select.loc[donorID, :]}\n')
+        self.dataPOI.index = self.patientsOfInterest
+        self.numPatients = len(self.patientsOfInterest)
+        print(f'Number of selected donors: {red}{self.numPatients}{resetColor}\n\n')
+        if self.numPatients == 0:
+            print(f'No donor were selected')
+            sys.exit()
+
 
         # Plot the data
         barColors = ['#FF8800', '#2E9418', '#56F1FF', '#FF0080', '#A800FF']
@@ -322,7 +357,7 @@ class BrainData:
             self.plotBarGraph(data=self.perAT8, dataType='% AT8',
                               barColors=barColors, barWidth=0.2)
         if self.plotAT8Cutoff:
-            self.plotBarGraph(data=self.perAT8High, dataType='% AT8',
+            self.plotBarGraph(data=self.perAT8Select, dataType='% AT8',
                               barColors=barColors, barWidth=0.2, cutoff=True)
 
         return self.patientsOfInterest
@@ -375,7 +410,10 @@ class BrainData:
             self.dataPOI.loc[donorID, :] += data.loc[donorID, :]
         print('\n')
 
-        dataTag = f'Localized AT8 > {self.perAT8Cutoff} %'
+        if self.selectionType == 'Range':
+            dataTag = f'Localized AT8 {self.perAT8Cutoff[0]} - {self.perAT8Cutoff[1]} %'
+        else:
+            dataTag = f'Localized AT8 {self.selectionType} {self.perAT8Cutoff} %'
         self.getMetadata(data, dataTag=dataTag)
 
 
@@ -383,18 +421,18 @@ class BrainData:
     def getMetadata(self, data, dataTag):
         print('=================================== Metadata '
               '====================================')
-        numPatients = len(self.dataPOI.index)
-
         # Select data for POI
         dataFields = ['Highest level of education', 'APOE Genotype', 'Cognitive Status',
                       'Age of onset cognitive symptoms', 'Age of Dementia diagnosis',
-                      'Last CASI Score', 'Interval from last CASI in months',
-                      'Last MMSE Score', 'Interval from last MMSE in months',
-                      'Last MOCA Score', 'Interval from last MOCA in months',
+                      'Last CASI Score', 'Last MMSE Score', 'Last MOCA Score',
                       'PMI', 'Brain pH', 'Overall AD neuropathological Change',
                       'Thal', 'Braak', 'CERAD score', 'Overall CAA Score',
                       'Highest Lewy Body Disease', 'Atherosclerosis',
                       'Arteriolosclerosis', 'LATE', 'RIN']
+        # 'Interval from last CASI in months', 'Interval from last MMSE in months',
+        # 'Interval from last MOCA in months',
+
+        # Ger: Metadata
         for donorID in self.dataPOI.index:
             for field in dataFields:
                 self.dataPOI.loc[donorID, field] = data.loc[donorID, field]
@@ -440,16 +478,16 @@ class BrainData:
             if 'dementia' in key.lower():
                 dementiaCounts += count
                 break
-        dementiaPercent = (dementiaCounts / numPatients) * 100
+        dementiaPercent = (dementiaCounts / self.numPatients) * 100
         print(f'Dementia cases in subset: {purple}{dataTag}{resetColor}\n'
+              f'     Total Patients: {red}{self.numPatients}{resetColor}\n'
               f'     Dementia Cases: {red}{dementiaCounts}{resetColor}\n'
-              f'     Total Patients: {red}{numPatients}{resetColor}\n'
               f'     Prevalence: {red}{round(dementiaPercent, self.roundDeci)} %'
               f'{resetColor}\n')
 
 
         # Plot the data
-        self.plotMetadata(data=metadata, dataTag=dataTag, N=numPatients)
+        self.plotMetadata(data=metadata, dataTag=dataTag, N=self.numPatients)
 
 
 
