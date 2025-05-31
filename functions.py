@@ -53,9 +53,10 @@ class Brains:
         self.files = files
 
         # Parameters: Datasets
-        self.neuropathy = None
-        self.metadata = None
         self.biomarkers = None
+        self.metadata = None
+        self.neuropathy = None
+        self.volume = None
 
         # Parameters: Data
         self.biomarkerExtractions = None
@@ -113,7 +114,7 @@ class Brains:
             colors = ['navy','royalblue','dodgerblue','lightskyblue','white','white',
                       'lightcoral','red','firebrick','darkred']
         else:
-            print(f'{orange}ERROR: Cannot create colormap. '
+            print(f'{orange}ERROR: Cannot Create Colormap. '
                   f'Unrecognized colorType parameter: {colorType}{resetColor}\n')
             sys.exit(1)
 
@@ -129,23 +130,32 @@ class Brains:
     def compairDF(self):
         print('=============================== Compare Datasets '
               '================================')
-        fileBase = self.files[0]
-        print(f'Comparing Datasets:{greenLight}')
-        for file in self.files:
-            print(f'     {file}')
-        print(f'{resetColor}\n')
+        for index in range(1, len(self.files)):
+            print(f'Comparing Datasets:{greenLight}\n'
+                  f'     {self.files[0]}\n'
+                  f'     {self.files[index]}{resetColor}')
+            if index == 1:
+                matchData = self.metadata
+            elif index == 2:
+                matchData = self.biomarkers
+            else:
+                print(f'{orange}ERROR: Write A Script To Check The {cyan}Donor IDs'
+                      f'{orange} In The File\n'
+                      f'    {cyan}{self.files[index]}\n')
+                sys.exit(1)
 
-
-        matchID = list(self.metadata.index)
-        missingID, missingIDCount = [], 0
-        for index, donorID in enumerate(self.neuropathy.index):
-            if donorID not in matchID:
-                missingIDCount += 1
-                missingID.append(donorID)
-        if missingIDCount == 0:
-            print(f'All Donor IDs match\n\n')
-        else:
-            print(f'Missing Donor IDs: {missingIDCount}\n{missingID}\n\n')
+            # Compair: Donor IDs
+            matchID = list(matchData.index)
+            missingID, missingIDCount = [], 0
+            for index, donorID in enumerate(self.neuropathy.index):
+                if donorID not in matchID:
+                    missingIDCount += 1
+                    missingID.append(donorID)
+            if missingIDCount == 0:
+                print(f'All Donor IDs match\n')
+            else:
+                print(f'Missing Donor IDs: {missingIDCount}\n{missingID}\n')
+        print()
 
         sys.exit()
 
@@ -200,11 +210,14 @@ class Brains:
                         self.biomarkers.columns = (
                             self.biomarkers.columns.get_level_values(1))
                         numRows = len(self.biomarkers.index)
+                    elif fileName == 'sea-ad_cohort_mri_volumetrics.xlsx':
+                        self.volume = pd.read_excel(fileLocation, index_col=0)
                     else:
-                        print(f'\n{orange}ERROR: File not found: {cyan}{fileName}\n')
+                        print(f'\n{orange}ERROR: Add Code To Load File\n'
+                              f'     {cyan}{fileName}\n')
                         sys.exit(1)
             else:
-                print(f'\n{orange}ERROR: Unknown File Extension: {cyan}{fileName}\n')
+                print(f'\n{orange}ERROR: Unknown File Extension {cyan}{fileName}\n')
                 sys.exit(1)
             print(f'\nTotal Rows: {red}{numRows}{resetColor}\n\n')
 
@@ -340,7 +353,7 @@ class Brains:
                     self.patientsOfInterest.append(donorID)
                     self.perAT8Select.loc[donorID] = self.perAT8.iloc[index, :]
             else:
-                print(f'{orange}ERROR: I have no use for this selectionType {cyan}'
+                print(f'{orange}ERROR: I hhave No Use For This selectionType {cyan}'
                       f'{self.selectionType}\n')
                 sys.exit()
 
