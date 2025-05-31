@@ -15,7 +15,7 @@
 - R: Rerun the script
 
 
-# Selecting: Patients of Interest
+# Selecting Patients of Interest
 
 Distribution of AT8 Signal:
 
