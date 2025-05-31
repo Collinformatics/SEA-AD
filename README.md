@@ -24,20 +24,14 @@ Distribution of AT8 Signal:
         # Input 2: Data Inspection
         inAT8Cutoff = []
 
-- Population with localzed AT8 Signal
-
-  To select donors with: Maximum % of AT8 Signal > 45%
+- To select donors with: Maximum % of AT8 Signal > 45%
 
         inAT8Cutoff = [45]
 
-- Population with evenly distributed AT8 Signal
-
-  To select donors with: Maximum % of AT8 Signal < 45%
+- To select donors with: Maximum % of AT8 Signal < 45%
 
         inAT8Cutoff = [-45]
 
-- Population with maximum AT8 Signal within a given range
-
-  To select donors with: 45 %  > Maximum % of AT8 Signal > 40 %
+- To select donors with: 45 %  > Maximum % of AT8 Signal > 40 %
 
         inAT8Cutoff = [45, 40]
