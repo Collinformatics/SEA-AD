@@ -1,6 +1,3 @@
-from Bio import SeqIO
-from Bio.Seq import Seq
-from Bio import BiopythonWarning
 import math
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
@@ -42,6 +39,9 @@ def pressKey(event):
         plt.close()
     elif event.key == 'e':
         sys.exit()
+    elif event.key == 'r':
+        python = sys.executable
+        os.execl(python, python, *sys.argv)
 
 
 
@@ -73,6 +73,7 @@ class BrainData:
 
         # Parameters: Variables
         self.perAT8Cutoff = perAT8Cutoff
+        self.selectionType = ''
         self.printData = printData
 
         # Parameters: Miscellaneous
@@ -304,7 +305,7 @@ class BrainData:
                     self.patientsOfInterest.append(donorID)
                     self.perAT8Select.loc[donorID] = self.perAT8.iloc[index, :]
             elif self.selectionType == 'Range':
-                if self.perAT8Cutoff[0] < maxVal < self.perAT8Cutoff[1]:
+                if self.perAT8Cutoff[0] > maxVal > self.perAT8Cutoff[1]:
                     self.patientsOfInterest.append(donorID)
                     self.perAT8Select.loc[donorID] = self.perAT8.iloc[index, :]
             else:
@@ -322,7 +323,7 @@ class BrainData:
                 self.perAT8Cutoff = abs(self.perAT8Cutoff)
                 self.selectionType = '<'
         else:
-            self.perAT8Cutoff = sorted(self.perAT8Cutoff)
+            self.perAT8Cutoff = sorted(self.perAT8Cutoff, reverse=True)
             print(f'Range: {self.perAT8Cutoff}')
             self.selectionType = 'Range'
 
@@ -404,16 +405,16 @@ class BrainData:
               '===============================')
         print(f'Selected donors: {pink}AT8{resetColor} > '
               f'{red}{self.perAT8Cutoff} %{resetColor}')
-        # dataPOI = pd.DataFrame(None, index=self.patientsOfInterest)
         for donorID in self.patientsOfInterest:
             print(f'     Donor ID: {purple}{donorID}{resetColor}')
             self.dataPOI.loc[donorID, :] += data.loc[donorID, :]
         print('\n')
 
         if self.selectionType == 'Range':
-            dataTag = f'Localized AT8 {self.perAT8Cutoff[0]} - {self.perAT8Cutoff[1]} %'
+            dataTag = (f'{self.perAT8Cutoff[0]} %  > Maximum AT8 Signal > '
+                       f'{self.perAT8Cutoff[1]} %')
         else:
-            dataTag = f'Localized AT8 {self.selectionType} {self.perAT8Cutoff} %'
+            dataTag = f'Maximum AT8 Signal {self.selectionType} {self.perAT8Cutoff} %'
         self.getMetadata(data, dataTag=dataTag)
 
 

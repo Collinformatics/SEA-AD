@@ -13,12 +13,12 @@ import sys
 
 # ===================================== User Inputs ======================================
 # Input 1: Select Dataset
-inPathFolder = '/Users/ca34522/Documents/Bioinformatics/SEA-AD/'
+inPathFolder = '/path/SEA-AD/'
 inLoadFiles = ['sea-ad_all_mtg_quant_neuropath_bydonorid_081122.csv',
                'sea-ad_cohort_donor_metadata_072524.xlsx']
 
 # Input 2: Data Inspection
-inAT8Cutoff = [33, 28]
+inAT8Cutoff = [45, 40]
 
 # Input 3: Plotting Data
 inPlotAT8 = False
