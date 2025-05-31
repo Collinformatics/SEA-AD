@@ -8,9 +8,11 @@
 
 # Keyboard Shortcuts
 
-Esc: Close the current figure
+- Esc: Close the current figure
 
-E: End the script that is currently running
+- E: End the script that is currently running
+
+- R: Rerun the script
 
 
 # Selecting: Patients of Interest
