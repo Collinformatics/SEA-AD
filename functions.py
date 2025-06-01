@@ -446,7 +446,7 @@ class Brains:
 
 
 
-    def plotDictionary(self, data, datasetType):
+    def plotDictionary(self, data, datasetType, inspectMetadata=True):
         barColors = plt.cm.Accent.colors
         title = (f'{datasetType}\n'
                  f'N = {self.numPatients} Patients\n'
@@ -454,8 +454,9 @@ class Brains:
                  f'Dementia Prevalence: {self.dementiaPrevalencePOI} %')
         datasetType = datasetType.lower()
 
-        # Evaluate: Cognitive status of POI
-        self.inspectMetadataPOI(category='Cognitive Status')
+        if inspectMetadata:
+            # Evaluate: Cognitive status of POI
+            self.inspectMetadataPOI(category='Cognitive Status')
 
         # Get: Dataset fields
         fields = list(data.keys())
@@ -645,9 +646,12 @@ class Brains:
             else:
                 print(f'{orange}ERROR: Add Code To Plot Extraction Type\n'
                       f'     {cyan}{extractionMethod}\n')
+                
 
         if self.plotBiomarkers:
+            firstFig = True
             for extractionMethod, values in self.biomarkersPOI.items():
                 self.plotDictionary(data=values,
-                                    datasetType=f'Biomarkers\n{extractionMethod}')
-
+                                    datasetType=f'Biomarkers\n{extractionMethod}',
+                                    inspectMetadata=firstFig)
+                firstFig = False
