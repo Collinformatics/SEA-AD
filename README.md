@@ -25,14 +25,14 @@
         # Input 1: Select Dataset
         inPathFolder = '/path/SEA-AD/'
 
-    - Define: Files
+  - Define: Files
  
-      Specifiy the names of the SEA-AD files
+    Specifiy the names of the SEA-AD files
 
-          # Input 1: Select Dataset
-          inLoadFiles = ['sea-ad_all_mtg_quant_neuropath_bydonorid_081122.csv',
-                         'sea-ad_cohort_donor_metadata_072524.xlsx',
-                         'sea-ad_cohort_mtg-tissue_extractions-luminex_data.xlsx']
+        # Input 1: Select Dataset
+        inLoadFiles = ['sea-ad_all_mtg_quant_neuropath_bydonorid_081122.csv',
+                       'sea-ad_cohort_donor_metadata_072524.xlsx',
+                       'sea-ad_cohort_mtg-tissue_extractions-luminex_data.xlsx']
 
 # Selecting Patients of Interest (POI)
 
