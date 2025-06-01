@@ -17,9 +17,9 @@ inPathFolder = '/path/SEA-AD/'
 inLoadFiles = ['sea-ad_all_mtg_quant_neuropath_bydonorid_081122.csv',
                'sea-ad_cohort_donor_metadata_072524.xlsx',
                'sea-ad_cohort_mtg-tissue_extractions-luminex_data.xlsx']
-# 'sea-ad_cohort_mri_volumetrics.xlsx'
 
 # Input 2: Data Inspection
+inSelectDataColumns = 'total AT8 positive'
 inAT8Cutoff = [44]
 
 
@@ -62,4 +62,4 @@ brains = Brains(pathFolder=inPathFolder, files=inLoadFiles, perAT8Cutoff=inAT8Cu
 brains.loadData()
 
 # Tau distributions
-brains.processNeuropathy(header='total AT8 positive')
+brains.processNeuropathy(header=inSelectDataColumns)
