@@ -646,7 +646,7 @@ class Brains:
             else:
                 print(f'{orange}ERROR: Add Code To Plot Extraction Type\n'
                       f'     {cyan}{extractionMethod}\n')
-                
+
 
         if self.plotBiomarkers:
             firstFig = True
