@@ -19,7 +19,7 @@
 
 Distribution of AT8 Signal:
 
-- Input:
+- User Inputs:
 
   - Define: Columns With AT8 Data
 
