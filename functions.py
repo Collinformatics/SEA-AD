@@ -1,4 +1,6 @@
 import math
+from unicodedata import category
+
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 import numpy as np
@@ -382,7 +384,7 @@ class Brains:
             maxVal = self.perAT8.iloc[index, :].max()
             evaluateSignal() # Collect samples based on AT8 distribution
         self.perAT8Select = self.perAT8Select.sort_index()
-        self.patientsOfInterest = self.perAT8Select.index
+        self.patientsOfInterest = self.perAT8Select.index.tolist()
         self.dataPOI.index = self.patientsOfInterest
         self.numPatients = len(self.patientsOfInterest)
 
@@ -513,6 +515,23 @@ class Brains:
 
 
 
+    def inspectMetadata(self, category):
+        print('=============================== Inspect Category '
+              '================================')
+        print(f'Category: {pink}{category}{resetColor}')
+        if not self.patientsOfInterest:
+            return
+
+        for donorID in self.patientsOfInterest:
+            if self.metadata.loc[donorID, category] == 'Dementia':
+                print(f'Donor: {purple}{donorID} '
+                      f'{red}{self.metadata.loc[donorID, category]}{resetColor} ')
+            else:
+                print(f'Donor: {donorID} {self.metadata.loc[donorID, category]}')
+        print('\n')
+
+
+
     def getMetadata(self):
         print('=================================== Metadata '
               '====================================')
@@ -623,10 +642,11 @@ class Brains:
                 print(f'{orange}ERROR: Add Code To Plot Extraction Type\n'
                       f'     {cyan}{extractionMethod}\n')
 
+        self.inspectMetadata(category='Cognitive Status')
 
         if self.plotBiomarkers:
             for extractionMethod, values in self.biomarkersPOI.items():
                 self.plotDictionary(data=values,
                                     datasetType=f'Biomarkers\n'
                                                 f'Extraction: {extractionMethod}')
-        sys.exit()
+
