@@ -52,19 +52,19 @@ class Brains:
 
         # Parameters: Datasets
         self.biomarkers = None
+        self.biomarkersPOI = {}
         self.metadata = None
+        self.metadataPOI = {}
         self.neuropathy = None
         self.volume = None
 
         # Parameters: Data
         self.biomarkerExtractions = None
-        self.patientsOfInterest = [] # Selected donors with localized AT8
-        self.numPatients = 0
         self.dataPOI = pd.DataFrame()
+        self.numPatients = 0
+        self.patientsOfInterest = [] # Selected donors with localized AT8
         self.perAT8 = None
         self.perAT8Select = None
-        self.metadataPOI = {}
-        self.biomarkersPOI = {}
 
         # Parameters: Figures
         self.plotAT8 = plotAT8
@@ -161,11 +161,10 @@ class Brains:
     def loadData(self):
         for fileName in self.files:
             numRows = 0
-
             # Inspect file
             fileLocation = os.path.join(self.pathFolder, fileName)
             if not os.path.exists(fileLocation):
-                print(f'\n{orange}ERROR: File not found\n'
+                print(f'\n{orange}ERROR: File Not Found\n'
                       f'     {cyan}{fileLocation}\n')
                 sys.exit(1)
 
@@ -205,7 +204,7 @@ class Brains:
                         self.biomarkers = pd.read_excel(fileLocation, header=[0, 1],
                                                         index_col=0)
                         self.biomarkerExtractions = (
-                            self.biomarkers.columns.get_level_values(0))
+                            self.biomarkers.columns.get_level_values(0)).tolist()
                         self.biomarkers.columns = (
                             self.biomarkers.columns.get_level_values(1))
                         numRows = len(self.biomarkers.index)
@@ -415,10 +414,9 @@ class Brains:
         else:
             dataTag = f'Maximum AT8 Signal {self.selectionType} {self.perAT8Cutoff} %'
 
-        sys.exit()
         # Process data
+        self.processBiomarkers()
         self.getMetadata(dataTag=dataTag)
-        self.biomarkers()
 
 
 
@@ -558,15 +556,27 @@ class Brains:
 
 
 
-    def processBioMarkers(self):
-        print('============================== Evaluating Datasets '
-              '==============================')
+    def processBiomarkers(self):
+        print('=========================== Evaluating Biomarker Data '
+              '===========================')
+        labels = []
+        for index, label in enumerate(self.biomarkerExtractions):
+            if label not in labels:
+                labels.append(label)
+
+
+
+        print(f'Biomarker Extractions: {pink}{labels[0]}{resetColor}, {pink}{labels[1]}'
+              f'{resetColor}\n{self.biomarkers}\n\n')
 
         # Get DOI biomarkers
+        biomarkerLevels = pd.DataFrame(index=self.patientsOfInterest,
+                                       columns=self.biomarkers.columns)
         for donorID in self.patientsOfInterest:
-            self.biomarkersDOI = 0
-
-        print(f'Biomarkers:')
+            self.biomarkersPOI[donorID] = self.biomarkers.loc[donorID, :]
+            biomarkerLevels.loc[donorID, :] = self.biomarkers.loc[donorID, :]
+        print(f'Biomarker Levels: {pink}Patients Of Interest{resetColor}\n'
+              f'{biomarkerLevels}\n\n')
 
 
         sys.exit()
