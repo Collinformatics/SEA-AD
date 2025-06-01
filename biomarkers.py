@@ -20,7 +20,7 @@ inLoadFiles = ['sea-ad_all_mtg_quant_neuropath_bydonorid_081122.csv',
 
 # Input 2: Data Inspection
 inSelectDataColumns = 'total AT8 positive'
-inAT8Cutoff = [44]
+inAT8Cutoff = [52]
 
 
 # Input 3: Plotting Data

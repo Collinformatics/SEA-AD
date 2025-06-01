@@ -205,7 +205,8 @@ class Brains:
                         self.metadata = self.metadata[self.metadata.index.notna()]
                         numRows = len(self.metadata.index)
                         print(f'Dataset: {pink}Metadata{resetColor}')
-                    elif fileName == 'sea-ad_cohort_mtg-tissue_extractions-luminex_data.xlsx':
+                    elif (fileName ==
+                          'sea-ad_cohort_mtg-tissue_extractions-luminex_data.xlsx'):
                         self.biomarkers = pd.read_excel(fileLocation, header=[0, 1],
                                                         index_col=0)
                         self.biomarkerExtractions = (
@@ -417,7 +418,8 @@ class Brains:
             self.dataTag = (f'{self.perAT8Cutoff[0]} %  > Maximum AT8 Signal > '
                        f'{self.perAT8Cutoff[1]} %')
         else:
-            self.dataTag = f'Maximum AT8 Signal {self.selectionType} {self.perAT8Cutoff} %'
+            self.dataTag = (f'Maximum AT8 Signal {self.selectionType} '
+                            f'{self.perAT8Cutoff} %')
 
         # Process data
         self.getMetadata()
@@ -437,7 +439,7 @@ class Brains:
         fields = list(data.keys())
 
         # Get: Max value
-        if datasetType == 'biomarkers' or datasetType == 'biomarker':
+        if 'biomarkers' in datasetType or 'biomarker' in datasetType:
             xMax = 0
             labelsBar = []
             for field in fields:
@@ -575,7 +577,7 @@ class Brains:
               f'     Total Patients: {red}{self.numPatients}{resetColor}\n'
               f'     Dementia Cases: {red}{dementiaCounts}{resetColor}\n'
               f'     Prevalence: {red}{self.dementiaPrevalencePOI} %'
-              f'{resetColor}\n')
+              f'{resetColor}\n\n')
 
         # Plot the data
         if self.plotMetadata:
@@ -586,22 +588,45 @@ class Brains:
     def processBiomarkers(self):
         print('=========================== Evaluating Biomarker Data '
               '===========================')
-        labels = []
+        methods = []
+        indices = []
         for index, label in enumerate(self.biomarkerExtractions):
-            if label not in labels:
-                labels.append(label)
-        print(f'Biomarker Extractions: {pink}{labels[0]}{resetColor}, {pink}{labels[1]}'
+            if label not in methods:
+                methods.append(label)
+                indices.append(index)
+        print(f'Biomarker Extractions: {pink}{methods[0]}{resetColor}, {pink}{methods[1]}'
               f'{resetColor}\n{self.biomarkers}\n\n')
 
         # Get POI biomarkers
         biomarkerLevels = pd.DataFrame(index=self.patientsOfInterest,
                                        columns=self.biomarkers.columns)
+        extractions, extractionA, extractionB = [], {}, {}
         for donorID in self.patientsOfInterest:
-            self.biomarkersPOI[donorID] = self.biomarkers.loc[donorID, :]
+            # Split the biomarkers by the extraction type
+            index = self.biomarkers.index.get_loc(donorID)
+            extractionA[donorID] = self.biomarkers.iloc[index, indices[0]:indices[1]]
+            extractionB[donorID] = self.biomarkers.iloc[index, indices[1]:]
+
             biomarkerLevels.loc[donorID, :] = self.biomarkers.loc[donorID, :]
+            # self.biomarkersPOI[donorID] = self.biomarkers.loc[donorID, :]
+
         print(f'Biomarker Levels: {pink}Patients Of Interest{resetColor}\n'
               f'{biomarkerLevels}\n\n')
 
+        for extractionMethod in methods:
+            if extractionMethod == 'RIPA Buffer Tissue extractions':
+                self.biomarkersPOI[extractionMethod] = extractionA
+            elif (extractionMethod ==
+                  'GuHCl (Guanidine Hydrochloride) Buffer Tissue extractions'):
+                self.biomarkersPOI[extractionMethod] = extractionB
+            else:
+                print(f'{orange}ERROR: Add Code To Plot Extraction Type\n'
+                      f'     {cyan}{extractionMethod}\n')
+
+
         if self.plotBiomarkers:
-            self.plotDictionary(data=self.biomarkersPOI, datasetType='Biomarkers')
+            for extractionMethod, values in self.biomarkersPOI.items():
+                self.plotDictionary(data=values,
+                                    datasetType=f'Biomarkers\n'
+                                                f'Extraction: {extractionMethod}')
         sys.exit()
