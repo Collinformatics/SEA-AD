@@ -14,6 +14,26 @@
 
 - R: Rerun the script
 
+# Loading Datasets
+
+- User Inputs:
+
+  - Define: File Path
+ 
+    Define the path to the folder with the SEA-AD datasets
+
+        # Input 1: Select Dataset
+        inPathFolder = '/path/SEA-AD/'
+
+    - Define: Files
+ 
+      Define the names of the SEA-AD datasets
+
+          # Input 1: Select Dataset
+          inLoadFiles = ['sea-ad_all_mtg_quant_neuropath_bydonorid_081122.csv',
+                         'sea-ad_cohort_donor_metadata_072524.xlsx',
+                         'sea-ad_cohort_mtg-tissue_extractions-luminex_data.xlsx']
+
 
 # Selecting Patients of Interest (POI)
 
