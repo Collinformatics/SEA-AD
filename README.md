@@ -34,11 +34,6 @@
                          'sea-ad_cohort_donor_metadata_072524.xlsx',
                          'sea-ad_cohort_mtg-tissue_extractions-luminex_data.xlsx']
 
-      - Required File:
-
-        - sea-ad_all_mtg_quant_neuropath_bydonorid_081122.csv
-
-
 # Selecting Patients of Interest (POI)
 
 Distribution of AT8 Signal:
