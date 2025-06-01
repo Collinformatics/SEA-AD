@@ -19,10 +19,17 @@
 
 Distribution of AT8 Signal:
 
-- Input: 
+- Input:
 
-        # Input 2: Data Inspection
-        inAT8Cutoff = []
+  Define: Columns With AT8 Data
+
+      # Input 2: Data Inspection
+      inSelectDataColumns = 'total AT8 positive'
+
+  Define POI Threshold: AT8 Levels
+
+      # Input 2: Data Inspection
+      inAT8Cutoff = []
   
   This input will allow you to select patients of interest based upon the distributions of AT8 signal in layers: 1, 2, 3, 4, 5-6
 
