@@ -447,10 +447,7 @@ class Brains:
                     if value > xMax:
                         xMax = value
             magnitude = np.floor((np.log10(xMax)) - 1)
-            print(f'Magnitude: {magnitude}\n'
-                  f'X Max: {xMax}')
             xMax += 10**magnitude
-            print(f'X Max: {xMax}')
         elif datasetType == 'metadata':
             xMax = 0
             labelsBar = []
