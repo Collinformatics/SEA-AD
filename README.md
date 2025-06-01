@@ -15,7 +15,7 @@
 - R: Rerun the script
 
 
-# Selecting Patients of Interest
+# Selecting Patients of Interest (POI)
 
 Distribution of AT8 Signal:
 
@@ -26,7 +26,7 @@ Distribution of AT8 Signal:
       # Input 2: Data Inspection
       inSelectDataColumns = 'total AT8 positive'
 
-  Define POI Threshold: AT8 Levels
+  Define: Threshold For AT8 Signal For POI
 
       # Input 2: Data Inspection
       inAT8Cutoff = []
