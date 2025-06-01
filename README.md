@@ -27,7 +27,7 @@
 
     - Define: Files
  
-      Define the names of the SEA-AD datasets
+      Specifiy the names of the SEA-AD datasets
 
           # Input 1: Select Dataset
           inLoadFiles = ['sea-ad_all_mtg_quant_neuropath_bydonorid_081122.csv',
