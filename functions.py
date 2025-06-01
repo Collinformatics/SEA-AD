@@ -45,7 +45,7 @@ def pressKey(event):
 
 class Brains:
     def __init__(self, pathFolder, files, perAT8Cutoff, plotAT8, plotAT8Cutoff,
-                 printData=False, NBars=None):
+                 plotMetadata, plotBiomarkers, printData=False, NBars=None):
         # Parameters: Files
         self.pathFolder = pathFolder
         self.files = files
@@ -61,6 +61,8 @@ class Brains:
         # Parameters: Data
         self.biomarkerExtractions = None
         self.dataPOI = pd.DataFrame()
+        self.dataTag = None
+        self.dementiaPrevalencePOI = None
         self.numPatients = 0
         self.patientsOfInterest = [] # Selected donors with localized AT8
         self.perAT8 = None
@@ -69,6 +71,8 @@ class Brains:
         # Parameters: Figures
         self.plotAT8 = plotAT8
         self.plotAT8Cutoff = plotAT8Cutoff
+        self.plotMetadata = plotMetadata
+        self.plotBiomarkers = plotBiomarkers
         self.figSize = (9.5, 8)
         self.figSizeLarge = (16, 9.5)
         self.figSizeW = (16, 8)
@@ -183,7 +187,8 @@ class Brains:
                     numRows = len(self.neuropathy.index)
                     print(f'Dataset: {pink}Neuropathy{resetColor}')
                 else:
-                    print(f'\n{orange}ERROR: File not found: {cyan}{fileName}\n')
+                    print(f'\n{orange}ERROR: Add Code To Load File\n'
+                          f'     {cyan}{fileName}\n')
                     sys.exit(1)
 
             # Load: Excel
@@ -409,18 +414,107 @@ class Brains:
 
         # Define: Selection type
         if self.selectionType == 'Range':
-            dataTag = (f'{self.perAT8Cutoff[0]} %  > Maximum AT8 Signal > '
+            self.dataTag = (f'{self.perAT8Cutoff[0]} %  > Maximum AT8 Signal > '
                        f'{self.perAT8Cutoff[1]} %')
         else:
-            dataTag = f'Maximum AT8 Signal {self.selectionType} {self.perAT8Cutoff} %'
+            self.dataTag = f'Maximum AT8 Signal {self.selectionType} {self.perAT8Cutoff} %'
 
         # Process data
+        self.getMetadata()
         self.processBiomarkers()
-        self.getMetadata(dataTag=dataTag)
 
 
 
-    def getMetadata(self, dataTag):
+    def plotDictionary(self, data, datasetType):
+        barColors = plt.cm.Accent.colors
+        title = (f'{datasetType}\n'
+                 f'N = {self.numPatients} Patients\n'
+                 f'{self.dataTag}\n'
+                 f'Dementia Prevalence: {self.dementiaPrevalencePOI} %')
+        datasetType = datasetType.lower()
+
+        # Get: Dataset fields
+        fields = list(data.keys())
+
+        # Get: Max value
+        if datasetType == 'biomarkers' or datasetType == 'biomarker':
+            xMax = 0
+            labelsBar = []
+            for field in fields:
+                values = data[field]
+                for key, value in values.items():
+                    labelsBar.append(key)
+                    if value > xMax:
+                        xMax = value
+            magnitude = np.floor((np.log10(xMax)) - 1)
+            print(f'Magnitude: {magnitude}\n'
+                  f'X Max: {xMax}')
+            xMax += 10**magnitude
+            print(f'X Max: {xMax}')
+        elif datasetType == 'metadata':
+            xMax = 0
+            labelsBar = []
+            for field in fields:
+                values = data[field]
+                for key, value in values.items():
+                    labelsBar.append(key)
+                    if value > xMax:
+                        xMax = value
+            xMax += 1
+        else:
+            print(f'{orange}ERROR: Add Code To Plot Dataset Type\n'
+                  f'     {cyan}{datasetType}\n')
+            sys.exit(1)
+
+
+        # Plot the data
+        fig, ax = plt.subplots(figsize=self.figSizeLarge)
+
+        yTicks = []
+        yLabels = []
+        maxCategories = max(len(data[field]) for field in fields)
+        barHeight = 0.9 / maxCategories  # Shrink bar height to fit all bars
+        for indexYCluster, field in enumerate(fields):
+            values = data[field]
+            for j, (label, count) in enumerate(values.items()):
+                yPos = indexYCluster + j * barHeight - (barHeight * len(values)) / 2
+                color = barColors[j % len(barColors)]
+                ax.barh(yPos, count, height=barHeight, color=color)
+
+                # Add count label to the end of each bar
+                ax.text(count + 0.1, yPos, f'{label}', va='center', color='black',
+                        fontsize=8, fontweight='bold')
+            yTicks.append(indexYCluster)
+            yLabels.append(field)
+        ax.set_title(title, fontsize=self.labelSizeTitle, fontweight='bold')
+        ax.set_xlabel('Counts', fontsize=self.labelSizeAxis)
+
+        # Set: xAxis
+        ax.set_xlim(0, xMax)
+
+        # Set: yAxis
+        ax.set_ylim(-1, len(yTicks))
+        ax.set_yticks(yTicks)
+        ax.set_yticklabels([str(label) for label in yLabels])
+        ax.invert_yaxis()
+
+        # Set tick parameters
+        ax.tick_params(axis='both', which='major', length=self.tickLength,
+                       labelsize=self.labelSizeTicks, width=self.lineThickness)
+
+        # Set the thickness of the figure border
+        for _, spine in ax.spines.items():
+            spine.set_visible(True)
+            spine.set_linewidth(self.lineThickness)
+
+        ax.grid(axis='x', linestyle='--', color='black')
+        fig.canvas.mpl_connect('key_press_event', pressKey)
+        plt.tight_layout()
+        plt.show()
+
+
+
+    def getMetadata(self):
         print('=================================== Metadata '
               '====================================')
         # Select data for POI
@@ -478,81 +572,17 @@ class Brains:
             if 'dementia' in key.lower():
                 dementiaCounts += count
                 break
-        dementiaPercent = (dementiaCounts / self.numPatients) * 100
-        print(f'Dementia cases in subset: {purple}{dataTag}{resetColor}\n'
+        self.dementiaPrevalencePOI = (dementiaCounts / self.numPatients) * 100
+        self.dementiaPrevalencePOI = round(self.dementiaPrevalencePOI, self.roundDecimal)
+        print(f'Dementia cases in subset: {purple}{self.dataTag}{resetColor}\n'
               f'     Total Patients: {red}{self.numPatients}{resetColor}\n'
               f'     Dementia Cases: {red}{dementiaCounts}{resetColor}\n'
-              f'     Prevalence: {red}{round(dementiaPercent, self.roundDecimal)} %'
+              f'     Prevalence: {red}{self.dementiaPrevalencePOI} %'
               f'{resetColor}\n')
 
         # Plot the data
-        self.plotMetadata(dataTag=dataTag, N=self.numPatients)
-
-
-
-    def plotMetadata(self, dataTag, N):
-        barColors = plt.cm.Accent.colors
-        title = f'{dataTag}\nN = {N} Patients'
-
-        # Get: Dataset fields
-        fields = list(self.metadataPOI.keys())
-
-        # Get: Max value
-        xMax = 0
-        labelsBar = []
-        for field in fields:
-            values = self.metadataPOI[field]
-            for key, value in values.items():
-                labelsBar.append(key)
-                if value > xMax:
-                    xMax = value
-        xMax += 1
-
-
-        # Plot the data
-        fig, ax = plt.subplots(figsize=self.figSizeLarge)
-
-        yTicks = []
-        yLabels = []
-        maxCategories = max(len(self.metadataPOI[field]) for field in fields)
-        barHeight = 0.9 / maxCategories  # Shrink bar height to fit all bars
-        for indexYCluster, field in enumerate(fields):
-            values = self.metadataPOI[field]
-            for j, (label, count) in enumerate(values.items()):
-                yPos = indexYCluster + j * barHeight - (barHeight * len(values)) / 2
-                color = barColors[j % len(barColors)]
-                ax.barh(yPos, count, height=barHeight, color=color)
-
-                # Add count label to the end of each bar
-                ax.text(count + 0.1, yPos, f'{label}', va='center', color='black',
-                        fontsize=8, fontweight='bold')
-            yTicks.append(indexYCluster)
-            yLabels.append(field)
-        ax.set_title(title, fontsize=self.labelSizeTitle, fontweight='bold')
-        ax.set_xlabel('Counts', fontsize=self.labelSizeAxis)
-
-        # Set: xAxis
-        ax.set_xlim(0, xMax)
-
-        # Set: yAxis
-        ax.set_ylim(-1, len(yTicks))
-        ax.set_yticks(yTicks)
-        ax.set_yticklabels([str(label) for label in yLabels])
-        ax.invert_yaxis()
-
-        # Set tick parameters
-        ax.tick_params(axis='both', which='major', length=self.tickLength,
-                       labelsize=self.labelSizeTicks, width=self.lineThickness)
-
-        # Set the thickness of the figure border
-        for _, spine in ax.spines.items():
-            spine.set_visible(True)
-            spine.set_linewidth(self.lineThickness)
-
-        ax.grid(axis='x', linestyle='--', color='black')
-        fig.canvas.mpl_connect('key_press_event', pressKey)
-        plt.tight_layout()
-        plt.show()
+        if self.plotMetadata:
+            self.plotDictionary(data=self.metadataPOI, datasetType='Metadata')
 
 
 
@@ -563,13 +593,10 @@ class Brains:
         for index, label in enumerate(self.biomarkerExtractions):
             if label not in labels:
                 labels.append(label)
-
-
-
         print(f'Biomarker Extractions: {pink}{labels[0]}{resetColor}, {pink}{labels[1]}'
               f'{resetColor}\n{self.biomarkers}\n\n')
 
-        # Get DOI biomarkers
+        # Get POI biomarkers
         biomarkerLevels = pd.DataFrame(index=self.patientsOfInterest,
                                        columns=self.biomarkers.columns)
         for donorID in self.patientsOfInterest:
@@ -578,5 +605,6 @@ class Brains:
         print(f'Biomarker Levels: {pink}Patients Of Interest{resetColor}\n'
               f'{biomarkerLevels}\n\n')
 
-
+        if self.plotBiomarkers:
+            self.plotDictionary(data=self.biomarkersPOI, datasetType='Biomarkers')
         sys.exit()

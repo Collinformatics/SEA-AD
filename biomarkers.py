@@ -26,6 +26,9 @@ inAT8Cutoff = [44]
 # Input 3: Plotting Data
 inPlotAT8 = False
 inPlotAT8Cutoff = False
+inPlotMetadata = True
+inPlotBiomarkers = True
+
 
 
 # ===================================== Set Options ======================================
@@ -53,7 +56,8 @@ resetColor = '\033[0m'
 
 # =================================== Initialize Class ===================================
 brains = Brains(pathFolder=inPathFolder, files=inLoadFiles, perAT8Cutoff=inAT8Cutoff,
-                   plotAT8=inPlotAT8, plotAT8Cutoff=inPlotAT8Cutoff)
+                plotAT8=inPlotAT8, plotAT8Cutoff=inPlotAT8Cutoff,
+                plotMetadata=inPlotMetadata, plotBiomarkers=inPlotBiomarkers)
 
 
 
