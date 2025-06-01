@@ -429,6 +429,23 @@ class Brains:
 
 
 
+    def inspectMetadataPOI(self, category):
+        print('=============================== Inspect Metadata '
+              '================================')
+        print(f'Category: {pink}{category}{resetColor}')
+        if not self.patientsOfInterest:
+            return
+
+        for donorID in self.patientsOfInterest:
+            if self.metadata.loc[donorID, category] == 'Dementia':
+                print(f'Donor: {purple}{donorID} '
+                      f'{red}{self.metadata.loc[donorID, category]}{resetColor} ')
+            else:
+                print(f'Donor: {donorID} {self.metadata.loc[donorID, category]}')
+        print('\n')
+
+
+
     def plotDictionary(self, data, datasetType):
         barColors = plt.cm.Accent.colors
         title = (f'{datasetType}\n'
@@ -436,6 +453,9 @@ class Brains:
                  f'{self.dataTag}\n'
                  f'Dementia Prevalence: {self.dementiaPrevalencePOI} %')
         datasetType = datasetType.lower()
+
+        # Evaluate: Cognitive status of POI
+        self.inspectMetadataPOI(category='Cognitive Status')
 
         # Get: Dataset fields
         fields = list(data.keys())
@@ -512,23 +532,6 @@ class Brains:
         fig.canvas.mpl_connect('key_press_event', pressKey)
         plt.tight_layout()
         plt.show()
-
-
-
-    def inspectMetadata(self, category):
-        print('=============================== Inspect Category '
-              '================================')
-        print(f'Category: {pink}{category}{resetColor}')
-        if not self.patientsOfInterest:
-            return
-
-        for donorID in self.patientsOfInterest:
-            if self.metadata.loc[donorID, category] == 'Dementia':
-                print(f'Donor: {purple}{donorID} '
-                      f'{red}{self.metadata.loc[donorID, category]}{resetColor} ')
-            else:
-                print(f'Donor: {donorID} {self.metadata.loc[donorID, category]}')
-        print('\n')
 
 
 
@@ -609,9 +612,9 @@ class Brains:
               '===========================')
         methods = []
         indices = []
-        for index, label in enumerate(self.biomarkerExtractions):
-            if label not in methods:
-                methods.append(label)
+        for index, extractionMethod in enumerate(self.biomarkerExtractions):
+            if extractionMethod not in methods:
+                methods.append(extractionMethod)
                 indices.append(index)
         print(f'Biomarker Extractions: {pink}{methods[0]}{resetColor}, {pink}{methods[1]}'
               f'{resetColor}\n{self.biomarkers}\n\n')
@@ -633,20 +636,18 @@ class Brains:
               f'{biomarkerLevels}\n\n')
 
         for extractionMethod in methods:
-            if extractionMethod == 'RIPA Buffer Tissue extractions':
+            extractionMethod = extractionMethod.replace('extractions', 'Extractions')
+            if extractionMethod == 'RIPA Buffer Tissue Extractions':
                 self.biomarkersPOI[extractionMethod] = extractionA
             elif (extractionMethod ==
-                  'GuHCl (Guanidine Hydrochloride) Buffer Tissue extractions'):
+                  'GuHCl (Guanidine Hydrochloride) Buffer Tissue Extractions'):
                 self.biomarkersPOI[extractionMethod] = extractionB
             else:
                 print(f'{orange}ERROR: Add Code To Plot Extraction Type\n'
                       f'     {cyan}{extractionMethod}\n')
 
-        self.inspectMetadata(category='Cognitive Status')
-
         if self.plotBiomarkers:
             for extractionMethod, values in self.biomarkersPOI.items():
                 self.plotDictionary(data=values,
-                                    datasetType=f'Biomarkers\n'
-                                                f'Extraction: {extractionMethod}')
+                                    datasetType=f'Biomarkers\n{extractionMethod}')
 
